@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ANT Stock</title>
+  <meta name="description" content="ANT Stock - Sistema de gestão de estoque e logística escolar." />
+  <link rel="icon" type="image/jpeg" href="assets/images/logo-dark.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/lucide-static@0.460.0/font/lucide.css" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/global.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/login.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="css/responsive.css" />
+  <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+  <!-- ╔══════════════════════════════════════════════════════════════╗
+       ║  CONFIGURAÇÃO DA API — EDITE ESTA LINHA ANTES DE PUBLICAR   ║
+       ║  Coloque o endereço do backend (Railway, VPS, etc.)         ║
+       ╚══════════════════════════════════════════════════════════════╝ -->
+  <script>
+    // Em desenvolvimento local: deixe como está (usa localhost:8000)
+    // Em produção (Hostinger + Railway): troque pelo URL do seu backend
+    // Exemplo: window.ANT_API_BASE_URL = "https://ant-stock.up.railway.app/api/v1";
+    window.ANT_API_BASE_URL = window.ANT_API_BASE_URL || "http://localhost:8000/api/v1";
+  </script>
+</head>
+<body>
+  <div id="app"></div>
+  <div id="notifications" class="notifications-container"></div>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

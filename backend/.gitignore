@@ -1,0 +1,4 @@
+.env
+wms-backend
+*.log
+.DS_Store

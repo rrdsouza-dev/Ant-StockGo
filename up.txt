@@ -1,0 +1,21 @@
+# Backend (Go)
+
+```bash
+cd backend
+go run main.go
+```
+
+Porta:
+8000
+
+---
+
+# Frontend
+
+```bash
+cd frontend/public/frontend
+python -m http.server 5173
+```
+
+Porta:
+5173
