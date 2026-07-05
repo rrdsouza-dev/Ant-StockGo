@@ -14,11 +14,12 @@ import (
 // decodifica a requisição, chama o AuthService e traduz o resultado
 // (ou erro) para uma resposta HTTP.
 type AuthHandler struct {
-	auth *services.AuthService
+	auth  *services.AuthService
+	users *services.UserService
 }
 
-func NewAuthHandler(auth *services.AuthService) *AuthHandler {
-	return &AuthHandler{auth: auth}
+func NewAuthHandler(auth *services.AuthService, users *services.UserService) *AuthHandler {
+	return &AuthHandler{auth: auth, users: users}
 }
 
 type registerRequest struct {
@@ -75,8 +76,19 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		return
 	}
 
+	// Corrigido: antes retornava user.ToPublic() puro, que nunca preenche
+	// Classes/Deposits (esses campos só existem em UserService.Me). Isso
+	// fazia o frontend iniciar a sessão do professor sem turmas/depósitos
+	// até que ele visitasse /profile (o único lugar que chamava /users/me).
+	// Agora o login já devolve o usuário totalmente hidratado.
+	public, err := h.users.Me(user)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "erro ao carregar dados do usuário"})
+		return
+	}
+
 	c.JSON(http.StatusOK, gin.H{
-		"user":  user.ToPublic(),
+		"user":  public,
 		"token": token,
 	})
 }

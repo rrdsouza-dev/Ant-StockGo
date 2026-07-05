@@ -7,29 +7,118 @@
 import { el, renderIcons } from "../utils/helpers.js";
 import { API } from "../services/api.js";
 import { notify } from "./notifications.js";
+import { applyDateMask, isValidBRDate, randomFunnyDateError } from "../utils/validators.js";
+
+/** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
+function isoToBRDate(iso) {
+  if (!iso) return "";
+  const datePart = String(iso).slice(0, 10); // "AAAA-MM-DD"
+  const [y, m, d] = datePart.split("-");
+  if (!y || !m || !d) return "";
+  return `${d}/${m}/${y}`;
+}
+
+/** Monta um <select> numérico de 1 a `max` (usado para corredor/torre/prateleira). */
+function numberSelect(max, selected) {
+  const select = el("select", { class: "select" }, [
+    el("option", { value: "", text: "—" }),
+  ]);
+  for (let i = 1; i <= max; i++) {
+    select.appendChild(el("option", { value: String(i), text: String(i), selected: selected === i }));
+  }
+  if (selected) select.value = String(selected);
+  return select;
+}
+
+/** Monta o <select> de posição: A1 até A10. */
+function positionSelect(selected) {
+  const select = el("select", { class: "select" }, [
+    el("option", { value: "", text: "—" }),
+  ]);
+  for (let i = 1; i <= 10; i++) {
+    const value = `A${i}`;
+    select.appendChild(el("option", { value, text: value }));
+  }
+  if (selected) select.value = selected;
+  return select;
+}
 
 /**
- * openInventoryItemModal — cria ou edita um item de estoque.
- * Fluxo: chama API.createInventoryItem / API.updateInventoryItem.
+ * openInventoryItemModal — cria ou edita um item de estoque, com todos os
+ * campos do cadastro estendido (validade, lote, categoria, localização,
+ * observações). Fluxo: chama API.createInventoryItem / API.updateInventoryItem.
  * Restrito à gestão na UI (o backend também recusaria para professor).
  */
-export function openInventoryItemModal({ depositId, item, onSave }) {
+export async function openInventoryItemModal({ depositId, item, onSave }) {
   const isEdit = !!item;
+  const loc = item?.location || {};
+
+  let categories = [];
+  try {
+    categories = await API.categories();
+  } catch {
+    // Segue sem categorias pré-carregadas; o select fica só com "Nenhuma".
+  }
+
   const f = {
     name: el("input", { class: "input", value: item?.name || "", placeholder: "Nome do item *" }),
     sku: el("input", { class: "input", value: item?.sku || "", placeholder: "Código / SKU (opcional)" }),
     min: el("input", { class: "input", type: "number", min: "0", value: item?.min_quantity ?? 0, placeholder: "Quantidade mínima" }),
+    expiry: el("input", {
+      class: "input", value: isoToBRDate(item?.expiry_date), placeholder: "DD/MM/AAAA", inputmode: "numeric", maxlength: "10",
+    }),
+    lot: el("input", { class: "input", value: item?.lot_number || "", placeholder: "Número do lote (opcional)" }),
+    notes: el("textarea", { class: "input", rows: "3", placeholder: "Observações (opcional)", text: item?.notes || "" }),
   };
+  f.expiry.addEventListener("input", () => { f.expiry.value = applyDateMask(f.expiry.value); expiryErr.textContent = ""; });
+
+  // ── Categoria + botão "+" ──────────────────────────────────
+  const categorySelect = el("select", { class: "select" }, [
+    el("option", { value: "", text: "Nenhuma" }),
+    ...categories.map((c) => el("option", { value: c.id, text: c.name, selected: item?.category_id === c.id })),
+  ]);
+  if (item?.category_id) categorySelect.value = item.category_id;
+  const addCategoryBtn = el("button", { type: "button", class: "icon-btn", title: "Nova categoria" }, [el("i", { "data-lucide": "plus" })]);
+  addCategoryBtn.addEventListener("click", () => openCategoryModal((created) => {
+    categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
+    categorySelect.value = created.id;
+  }));
+  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn]);
+
+  // ── Localização genérica: corredor / torre / prateleira / posição ──
+  const aisleSelect = numberSelect(10, loc.aisle);
+  const towerSelect = numberSelect(10, loc.tower);
+  const shelfSelect = numberSelect(10, loc.shelf);
+  const positionSel = positionSelect(loc.position);
+
+  const expiryErr = el("div", { class: "error-text" });
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), isEdit ? "Salvar" : "Criar"]);
   const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
 
-  const card = el("div", { class: "modal" }, [
+  const card = el("div", { class: "modal modal-lg" }, [
     el("div", { class: "modal-header" }, [el("h3", { text: isEdit ? "Editar item de estoque" : "Novo item de estoque" })]),
     el("div", { class: "product-modal-body" }, [
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), f.name]),
-      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Código / SKU" }), f.sku]),
-      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Quantidade mínima" }), f.min]),
+      el("div", { class: "form-grid-2" }, [
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Código / SKU" }), f.sku]),
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Quantidade mínima" }), f.min]),
+      ]),
+      el("div", { class: "form-grid-2" }, [
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Data de validade *" }), f.expiry, expiryErr]),
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote" }), f.lot]),
+      ]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Categoria" }), categoryRow]),
+      el("div", { class: "field" }, [
+        el("label", { class: "field-label", text: "Localização" }),
+        el("div", { class: "form-grid-4" }, [
+          el("div", {}, [el("label", { class: "field-sublabel", text: "Corredor" }), aisleSelect]),
+          el("div", {}, [el("label", { class: "field-sublabel", text: "Torre" }), towerSelect]),
+          el("div", {}, [el("label", { class: "field-sublabel", text: "Prateleira" }), shelfSelect]),
+          el("div", {}, [el("label", { class: "field-sublabel", text: "Posição" }), positionSel]),
+        ]),
+      ]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Observações" }), f.notes]),
       errEl,
     ]),
     el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
@@ -42,11 +131,33 @@ export function openInventoryItemModal({ depositId, item, onSave }) {
 
   saveBtn.addEventListener("click", async () => {
     const name = f.name.value.trim();
-    if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
     errEl.textContent = "";
+    expiryErr.textContent = "";
+    if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
+
+    const expiryValue = f.expiry.value.trim();
+    if (!expiryValue || !isValidBRDate(expiryValue)) {
+      expiryErr.textContent = randomFunnyDateError();
+      return;
+    }
+
     saveBtn.disabled = true;
     try {
-      const data = { name, sku: f.sku.value.trim(), minQuantity: Number(f.min.value) || 0 };
+      const data = {
+        name,
+        sku: f.sku.value.trim(),
+        minQuantity: Number(f.min.value) || 0,
+        expiryDate: expiryValue,
+        lotNumber: f.lot.value.trim(),
+        categoryId: categorySelect.value || null,
+        notes: f.notes.value.trim(),
+        location: {
+          aisle: Number(aisleSelect.value) || 0,
+          tower: Number(towerSelect.value) || 0,
+          shelf: Number(shelfSelect.value) || 0,
+          position: positionSel.value || "",
+        },
+      };
       if (isEdit) await API.updateInventoryItem(item.id, data);
       else await API.createInventoryItem({ depositId, ...data });
       notify(isEdit ? "Item atualizado!" : "Item criado!", "success");
@@ -62,6 +173,52 @@ export function openInventoryItemModal({ depositId, item, onSave }) {
   document.body.appendChild(backdrop);
   renderIcons(backdrop);
   setTimeout(() => f.name.focus(), 80);
+}
+
+/**
+ * openCategoryModal — pequeno modal para cadastrar uma nova categoria
+ * (botão "+" ao lado do campo Categoria). Chama onCreated(category) para
+ * que o formulário de item selecione a categoria recém-criada na hora,
+ * sem precisar recarregar nada.
+ */
+function openCategoryModal(onCreated) {
+  const nameInput = el("input", { class: "input", placeholder: "Nome da categoria *" });
+  const errEl = el("div", { class: "error-text" });
+  const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), "Criar"]);
+  const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+
+  const card = el("div", { class: "modal modal-sm" }, [
+    el("div", { class: "modal-header" }, [el("h3", { text: "Nova categoria" })]),
+    el("div", { class: "product-modal-body" }, [
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), nameInput]),
+      errEl,
+    ]),
+    el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
+  ]);
+  const backdrop = el("div", { class: "modal-backdrop" }, [card]);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  cancelBtn.addEventListener("click", close);
+
+  saveBtn.addEventListener("click", async () => {
+    const name = nameInput.value.trim();
+    if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
+    saveBtn.disabled = true;
+    try {
+      const created = await API.createCategory(name);
+      notify("Categoria criada!", "success");
+      close();
+      onCreated?.(created);
+    } catch (err) {
+      errEl.textContent = err.message || "Erro ao criar categoria.";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  document.body.appendChild(backdrop);
+  renderIcons(backdrop);
+  setTimeout(() => nameInput.focus(), 80);
 }
 
 /**

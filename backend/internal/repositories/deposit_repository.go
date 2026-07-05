@@ -49,13 +49,24 @@ func (r *DepositRepository) List() ([]domain.Deposit, error) {
 
 // ListByIDs retorna apenas os depósitos cujo id está no conjunto informado
 // (usado para restringir professores aos depósitos das suas turmas).
+//
+// NOTA DE CORREÇÃO: o parâmetro precisa do cast explícito ::uuid[]. Sem
+// ele, o driver (lib/pq) envia o array como texto puro e o Postgres não
+// consegue resolver de forma confiável o tipo do parâmetro em `= ANY($1)`
+// contra uma coluna uuid — o resultado, dependendo do plano gerado, é
+// zero linhas ao invés de um erro. Era exatamente isso que fazia o
+// professor "não ver" depósitos que estavam corretamente vinculados no
+// banco: o filtro de acesso pegava os IDs certos (DepositIDsForProfessor),
+// mas esta consulta seguinte não conseguia casar esses IDs com a tabela.
+// A gestão nunca foi afetada porque DepositRepository.List() não usa
+// parâmetro nenhum (lista tudo diretamente).
 func (r *DepositRepository) ListByIDs(ids []string) ([]domain.Deposit, error) {
 	if len(ids) == 0 {
 		return []domain.Deposit{}, nil
 	}
 	query := `
 		SELECT id, name, description, active, created_by, created_at, updated_at
-		FROM deposits WHERE active = true AND id = ANY($1) ORDER BY created_at DESC`
+		FROM deposits WHERE active = true AND id = ANY($1::uuid[]) ORDER BY created_at DESC`
 	rows, err := r.db.Query(query, pq.Array(ids))
 	if err != nil {
 		return nil, err

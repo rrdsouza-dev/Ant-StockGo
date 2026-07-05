@@ -4,8 +4,8 @@
 cd backend
 go run main.go
 ```
-
-Porta:
+http://localhost:8000/api/v1/health
+Porta: http://localhost:8000
 8000
 
 ---
@@ -17,5 +17,5 @@ cd frontend/public/frontend
 python -m http.server 5173
 ```
 
-Porta:
+Porta: http://localhost:5173
 5173

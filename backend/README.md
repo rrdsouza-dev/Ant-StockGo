@@ -22,10 +22,15 @@ Supabase, ou rode via psql:
 
 ```bash
 psql "$DATABASE_URL" -f database/migrations/001_init.sql
+psql "$DATABASE_URL" -f database/migrations/002_item_details.sql
 ```
 
-Isso cria as tabelas `users`, `pending_users`, `deposits`, `inventory`,
-`stock_movements`, `classes`, `class_teachers` e `class_deposits`.
+`001_init.sql` cria as tabelas `users`, `pending_users`, `deposits`,
+`inventory`, `stock_movements`, `classes`, `class_teachers` e
+`class_deposits`. `002_item_details.sql` cria `categories` (com um seed
+de categorias de exemplo) e adiciona ao `inventory` os campos de
+validade, lote, categoria, localização e observações — rode-a mesmo em
+bancos já existentes, ela usa `ADD COLUMN IF NOT EXISTS`.
 
 > **Primeiro acesso:** como toda conta nova entra como pendente, não há
 > nenhum usuário de gestão para aprovar os demais. Descomente e ajuste o
@@ -84,3 +89,10 @@ Ver `routes/routes.go` para a lista completa. Resumo:
 | POST   | `/api/v1/inventory/move` | Autenticado (escopo por depósito) |
 | GET    | `/api/v1/inventory/movements` | Autenticado |
 | GET/POST/PATCH/DELETE | `/api/v1/classes[/:id]` | Leitura: autenticado · Escrita: gestão |
+| GET/POST | `/api/v1/categories` | Leitura: autenticado · Escrita: gestão |
+
+`POST`/`PATCH /inventory` aceitam, além de nome/sku/quantidade mínima:
+`expiry_date` (string `"DD/MM/AAAA"`, obrigatório), `lot_number`,
+`category_id` (uuid ou `null`), `notes`, e `location` (objeto
+`{aisle, tower, shelf, position}`, todos os campos opcionais e
+independentes — pensado para crescer sem precisar de nova migração).

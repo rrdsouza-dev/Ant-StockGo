@@ -29,6 +29,7 @@ Endpoints consumidos (ver `js/services/api.js`):
 - `GET/POST/PATCH/DELETE /deposits[/:id]`
 - `GET/POST/PATCH/DELETE /inventory[/:id]`, `POST /inventory/move`, `GET /inventory/movements`
 - `GET/POST/PATCH/DELETE /classes[/:id]`
+- `GET/POST /categories`
 
 ## Estrutura de páginas
 
