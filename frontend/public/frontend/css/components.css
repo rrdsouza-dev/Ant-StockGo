@@ -231,7 +231,8 @@
     flex: 1;
     max-width: 520px;
 }
-.search-bar i {
+.search-bar i,
+.search-bar svg {
     position: absolute;
     left: 18px;
     top: 50%;
@@ -488,6 +489,12 @@ table.data tbody tr:last-child td {
     font-size: 12px;
     color: var(--text-muted);
 }
+.product-card .pc-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+}
 .product-card .pc-row {
     display: flex;
     justify-content: space-between;
@@ -623,6 +630,26 @@ table.data tbody tr:last-child td {
 .modal-lg {
     max-width: 680px;
     width: 95vw;
+}
+.modal-sm {
+    max-width: 400px;
+    width: 92vw;
+}
+.form-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+}
+.field-sublabel {
+    display: block;
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-bottom: 3px;
+}
+@media (max-width: 560px) {
+    .form-grid-4 {
+        grid-template-columns: repeat(2, 1fr);
+    }
 }
 .modal-header {
     margin-bottom: 16px;

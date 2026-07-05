@@ -34,11 +34,41 @@ func (h *InventoryHandler) List(c *gin.Context) {
 	c.JSON(http.StatusOK, items)
 }
 
+type locationRequest struct {
+	Aisle    int    `json:"aisle"`
+	Tower    int    `json:"tower"`
+	Shelf    int    `json:"shelf"`
+	Position string `json:"position"`
+}
+
 type inventoryItemRequest struct {
-	DepositID   string `json:"deposit_id"`
-	Name        string `json:"name"`
-	SKU         string `json:"sku"`
-	MinQuantity int    `json:"min_quantity"`
+	DepositID   string          `json:"deposit_id"`
+	Name        string          `json:"name"`
+	SKU         string          `json:"sku"`
+	MinQuantity int             `json:"min_quantity"`
+	ExpiryDate  string          `json:"expiry_date"` // DD/MM/AAAA
+	LotNumber   string          `json:"lot_number"`
+	CategoryID  *string         `json:"category_id"`
+	Notes       string          `json:"notes"`
+	Location    locationRequest `json:"location"`
+}
+
+func (r inventoryItemRequest) toItemInput() services.ItemInput {
+	return services.ItemInput{
+		Name:        r.Name,
+		SKU:         r.SKU,
+		MinQuantity: r.MinQuantity,
+		ExpiryDate:  r.ExpiryDate,
+		LotNumber:   r.LotNumber,
+		CategoryID:  r.CategoryID,
+		Notes:       r.Notes,
+		Location: domain.Location{
+			Aisle:    r.Location.Aisle,
+			Tower:    r.Location.Tower,
+			Shelf:    r.Location.Shelf,
+			Position: r.Location.Position,
+		},
+	}
 }
 
 // Create — POST /inventory (somente gestão)
@@ -49,7 +79,7 @@ func (h *InventoryHandler) Create(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo da requisição inválido"})
 		return
 	}
-	item, err := h.inventory.Create(user, req.DepositID, req.Name, req.SKU, req.MinQuantity)
+	item, err := h.inventory.Create(user, req.DepositID, req.toItemInput())
 	if err != nil {
 		respondServiceError(c, err)
 		return
@@ -66,7 +96,7 @@ func (h *InventoryHandler) Update(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "corpo da requisição inválido"})
 		return
 	}
-	item, err := h.inventory.Update(user, id, req.Name, req.SKU, req.MinQuantity)
+	item, err := h.inventory.Update(user, id, req.toItemInput())
 	if err != nil {
 		respondServiceError(c, err)
 		return

@@ -13,11 +13,12 @@ import (
 // Mantém Setup enxuto e fácil de ler — cada linha abaixo mapeia
 // diretamente para um item da lista de ENDPOINTS da especificação.
 type Dependencies struct {
-	Auth      *handlers.AuthHandler
-	Users     *handlers.UserHandler
-	Deposits  *handlers.DepositHandler
-	Inventory *handlers.InventoryHandler
-	Classes   *handlers.ClassHandler
+	Auth       *handlers.AuthHandler
+	Users      *handlers.UserHandler
+	Deposits   *handlers.DepositHandler
+	Inventory  *handlers.InventoryHandler
+	Classes    *handlers.ClassHandler
+	Categories *handlers.CategoryHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -71,5 +72,10 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		classes.POST("", gestaoOnly, deps.Classes.Create)
 		classes.PATCH("/:id", gestaoOnly, deps.Classes.Update)
 		classes.DELETE("/:id", gestaoOnly, deps.Classes.Delete)
+
+		// ── Categorias (item de estoque) ─────────────────────────
+		categories := api.Group("/categories", authRequired)
+		categories.GET("", deps.Categories.List)
+		categories.POST("", gestaoOnly, deps.Categories.Create)
 	}
 }

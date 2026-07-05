@@ -8,15 +8,21 @@ import "time"
 // mas nunca alterada diretamente por um handler — apenas pelo
 // InventoryService.Move, dentro de uma transação junto com o movimento).
 type InventoryItem struct {
-	ID          string    `json:"id"`
-	DepositID   string    `json:"deposit_id"`
-	Name        string    `json:"name"`
-	SKU         string    `json:"sku,omitempty"`
-	Quantity    int       `json:"quantity"`
-	MinQuantity int       `json:"min_quantity"`
-	Active      bool      `json:"active"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          string     `json:"id"`
+	DepositID   string     `json:"deposit_id"`
+	Name        string     `json:"name"`
+	SKU         string     `json:"sku,omitempty"`
+	Quantity    int        `json:"quantity"`
+	MinQuantity int        `json:"min_quantity"`
+	ExpiryDate  *time.Time `json:"expiry_date,omitempty"` // obrigatório na escrita; nullable no banco por compatibilidade com itens antigos
+	LotNumber   string     `json:"lot_number,omitempty"`
+	CategoryID  *string    `json:"category_id,omitempty"`
+	Category    *Category  `json:"category,omitempty"` // hidratado via LEFT JOIN, só para leitura
+	Notes       string     `json:"notes,omitempty"`
+	Location    Location   `json:"location"`
+	Active      bool       `json:"active"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // MovementType define o sentido de uma movimentação de estoque.

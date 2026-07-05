@@ -14,6 +14,40 @@ import { exportTxt } from "../utils/exportTxt.js";
 import { openInventoryItemModal, openMoveModal } from "../components/inventoryModal.js";
 import { openModal } from "../components/modal.js";
 
+/** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
+function isoToBRDate(iso) {
+  if (!iso) return "";
+  const datePart = String(iso).slice(0, 10);
+  const [y, m, d] = datePart.split("-");
+  if (!y || !m || !d) return "";
+  return `${d}/${m}/${y}`;
+}
+
+/** Monta um texto curto "Corredor 3 · Torre 2 · Prateleira 5 · A7" a partir do objeto location. */
+function formatLocation(loc) {
+  if (!loc) return "";
+  const parts = [];
+  if (loc.aisle) parts.push(`Corredor ${loc.aisle}`);
+  if (loc.tower) parts.push(`Torre ${loc.tower}`);
+  if (loc.shelf) parts.push(`Prateleira ${loc.shelf}`);
+  if (loc.position) parts.push(loc.position);
+  return parts.join(" · ");
+}
+
+/** Marca como "vencendo" itens com validade nos próximos 30 dias ou já vencidos. */
+function isExpiringSoon(iso) {
+  if (!iso) return false;
+  const expiry = new Date(String(iso).slice(0, 10));
+  const in30Days = new Date();
+  in30Days.setDate(in30Days.getDate() + 30);
+  return expiry.getTime() <= in30Days.getTime();
+}
+
+function truncate(text, max) {
+  if (!text || text.length <= max) return text || "";
+  return text.slice(0, max - 1) + "…";
+}
+
 export function InventoryPage(root, ctx) {
   let query = "";
   let items = [];
@@ -55,7 +89,15 @@ export function InventoryPage(root, ctx) {
 
     function exportRows() {
       return visibleItems().map((i) => ({
-        nome: i.name, sku: i.sku || "", quantidade: i.quantity, quantidade_minima: i.min_quantity,
+        nome: i.name,
+        sku: i.sku || "",
+        quantidade: i.quantity,
+        quantidade_minima: i.min_quantity,
+        validade: isoToBRDate(i.expiry_date),
+        lote: i.lot_number || "",
+        categoria: i.category?.name || "",
+        localizacao: formatLocation(i.location),
+        observacoes: i.notes || "",
       }));
     }
 
@@ -84,6 +126,15 @@ export function InventoryPage(root, ctx) {
 
     function buildCard(item) {
       const status = statusFor(item);
+      const locationText = formatLocation(item.location);
+      const expiryText = isoToBRDate(item.expiry_date);
+      const expiryWarn = isExpiringSoon(item.expiry_date);
+
+      const metaLine = el("div", { class: "pc-meta" });
+      if (item.category?.name) metaLine.appendChild(el("span", { class: "chip chip-info", text: item.category.name }));
+      if (expiryText) metaLine.appendChild(el("span", { class: `chip ${expiryWarn ? "chip-danger" : "chip-success"}`, text: `Validade: ${expiryText}` }));
+      if (item.lot_number) metaLine.appendChild(el("span", { class: "muted", style: "font-size:0.78em", text: `Lote: ${item.lot_number}` }));
+
       const card = el("article", { class: "product-card" }, [
         el("div", { class: "pc-head" }, [
           el("div", {}, [
@@ -92,6 +143,9 @@ export function InventoryPage(root, ctx) {
           ]),
           el("span", { class: `chip ${status.cls}`, text: status.label }),
         ]),
+        metaLine,
+        locationText ? el("div", { class: "location-badge" }, [el("i", { "data-lucide": "map-pin" }), locationText]) : el("span"),
+        item.notes ? el("p", { class: "muted", style: "font-size:0.8em;margin-top:6px", title: item.notes, text: truncate(item.notes, 80) }) : el("span"),
         el("div", { class: "pc-row" }, [
           el("div", { class: "pc-qty", html: `${item.quantity}<span>un</span>` }),
           el("div", { class: "pc-actions" }, [

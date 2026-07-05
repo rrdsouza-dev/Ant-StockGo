@@ -37,6 +37,7 @@ func main() {
 	depositRepo := repositories.NewDepositRepository(db)
 	inventoryRepo := repositories.NewInventoryRepository(db)
 	classRepo := repositories.NewClassRepository(db)
+	categoryRepo := repositories.NewCategoryRepository(db)
 
 	// Services (regras de negócio)
 	classService := services.NewClassService(classRepo, depositRepo)
@@ -44,14 +45,16 @@ func main() {
 	inventoryService := services.NewInventoryService(inventoryRepo, depositService)
 	authService := services.NewAuthService(userRepo, pendingRepo, jwtManager)
 	userService := services.NewUserService(userRepo, classService, depositService)
+	categoryService := services.NewCategoryService(categoryRepo)
 
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
-		Auth:       handlers.NewAuthHandler(authService),
+		Auth:       handlers.NewAuthHandler(authService, userService),
 		Users:      handlers.NewUserHandler(userService),
 		Deposits:   handlers.NewDepositHandler(depositService),
 		Inventory:  handlers.NewInventoryHandler(inventoryService),
 		Classes:    handlers.NewClassHandler(classService),
+		Categories: handlers.NewCategoryHandler(categoryService),
 		JWTManager: jwtManager,
 		UserRepo:   userRepo,
 	}

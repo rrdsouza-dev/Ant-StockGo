@@ -5,9 +5,24 @@ import (
 
 	"wms-backend/internal/domain"
 	"wms-backend/internal/repositories"
+	"wms-backend/internal/validation"
 )
 
 var ErrForbiddenDeposit = errors.New("você não tem acesso a este depósito")
+
+// ItemInput agrupa os campos graváveis de um item de estoque. Existe para
+// não empilhar 8 parâmetros posicionais em Create/Update — qualquer campo
+// novo do cadastro entra aqui, num único lugar.
+type ItemInput struct {
+	Name        string
+	SKU         string
+	MinQuantity int
+	ExpiryDate  string // formato DD/MM/AAAA, validado em validation.ParseBRDate
+	LotNumber   string
+	CategoryID  *string
+	Notes       string
+	Location    domain.Location
+}
 
 // InventoryService concentra as regras de negócio de itens de estoque e
 // suas movimentações. Toda operação passa primeiro por DepositService
@@ -51,7 +66,7 @@ func (s *InventoryService) List(user domain.User, depositID string) ([]domain.In
 
 // Create cadastra um novo item de inventário em um depósito (somente
 // gestão — aplicado pelo handler via middleware.RequireRole).
-func (s *InventoryService) Create(user domain.User, depositID, name, sku string, minQuantity int) (domain.InventoryItem, error) {
+func (s *InventoryService) Create(user domain.User, depositID string, input ItemInput) (domain.InventoryItem, error) {
 	ok, err := s.deposits.CanAccess(user, depositID)
 	if err != nil {
 		return domain.InventoryItem{}, err
@@ -59,13 +74,36 @@ func (s *InventoryService) Create(user domain.User, depositID, name, sku string,
 	if !ok {
 		return domain.InventoryItem{}, ErrForbiddenDeposit
 	}
-	if name == "" {
+	if input.Name == "" {
 		return domain.InventoryItem{}, errors.New("nome do item é obrigatório")
 	}
-	return s.inventory.Create(domain.InventoryItem{DepositID: depositID, Name: name, SKU: sku, MinQuantity: minQuantity})
+
+	// Data de validade é obrigatória no cadastro (regra explícita da
+	// especificação). Itens criados antes desta funcionalidade podem ter
+	// expiry_date nulo no banco (coluna nullable por segurança de
+	// migração), mas todo NOVO item passa por aqui.
+	expiry, err := validation.ParseBRDate(input.ExpiryDate)
+	if err != nil {
+		return domain.InventoryItem{}, err
+	}
+	if err := input.Location.Validate(); err != nil {
+		return domain.InventoryItem{}, err
+	}
+
+	return s.inventory.Create(domain.InventoryItem{
+		DepositID:   depositID,
+		Name:        input.Name,
+		SKU:         input.SKU,
+		MinQuantity: input.MinQuantity,
+		ExpiryDate:  &expiry,
+		LotNumber:   input.LotNumber,
+		CategoryID:  input.CategoryID,
+		Notes:       input.Notes,
+		Location:    input.Location,
+	})
 }
 
-func (s *InventoryService) Update(user domain.User, itemID, name, sku string, minQuantity int) (domain.InventoryItem, error) {
+func (s *InventoryService) Update(user domain.User, itemID string, input ItemInput) (domain.InventoryItem, error) {
 	item, err := s.inventory.FindByID(itemID)
 	if err != nil {
 		return domain.InventoryItem{}, err
@@ -77,7 +115,20 @@ func (s *InventoryService) Update(user domain.User, itemID, name, sku string, mi
 	if !ok {
 		return domain.InventoryItem{}, ErrForbiddenDeposit
 	}
-	return s.inventory.Update(itemID, name, sku, minQuantity)
+	if input.Name == "" {
+		return domain.InventoryItem{}, errors.New("nome do item é obrigatório")
+	}
+
+	expiry, err := validation.ParseBRDate(input.ExpiryDate)
+	if err != nil {
+		return domain.InventoryItem{}, err
+	}
+	if err := input.Location.Validate(); err != nil {
+		return domain.InventoryItem{}, err
+	}
+
+	return s.inventory.Update(itemID, input.Name, input.SKU, input.MinQuantity,
+		&expiry, input.LotNumber, input.CategoryID, input.Notes, input.Location)
 }
 
 func (s *InventoryService) Deactivate(user domain.User, itemID string) error {

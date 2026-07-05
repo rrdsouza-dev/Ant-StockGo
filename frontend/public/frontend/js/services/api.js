@@ -112,20 +112,37 @@ export const API = {
     const list = await request("/inventory", { params: { deposit_id: depositId } });
     return list || [];
   },
-  async createInventoryItem({ depositId, name, sku, minQuantity }) {
+  async createInventoryItem({ depositId, name, sku, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
     return request("/inventory", {
       method: "POST",
-      body: { deposit_id: depositId, name, sku, min_quantity: minQuantity },
+      body: {
+        deposit_id: depositId, name, sku, min_quantity: minQuantity,
+        expiry_date: expiryDate, lot_number: lotNumber, category_id: categoryId || null,
+        notes, location: location || {},
+      },
     });
   },
-  async updateInventoryItem(id, { name, sku, minQuantity }) {
+  async updateInventoryItem(id, { name, sku, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
     return request(`/inventory/${id}`, {
       method: "PATCH",
-      body: { name, sku, min_quantity: minQuantity },
+      body: {
+        name, sku, min_quantity: minQuantity,
+        expiry_date: expiryDate, lot_number: lotNumber, category_id: categoryId || null,
+        notes, location: location || {},
+      },
     });
   },
   async deleteInventoryItem(id) {
     return request(`/inventory/${id}`, { method: "DELETE" });
+  },
+
+  // ── Categorias (item de estoque) ────────────────────────────
+  async categories() {
+    const list = await request("/categories");
+    return list || [];
+  },
+  async createCategory(name) {
+    return request("/categories", { method: "POST", body: { name } });
   },
 
   /** Registra uma entrada ("in") ou saída ("out") de estoque. */
