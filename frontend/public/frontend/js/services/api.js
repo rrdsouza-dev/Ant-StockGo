@@ -93,23 +93,26 @@ export const API = {
   },
 
   // ── Depósitos (estoques) ────────────────────────────────────
-  async deposits() {
-    const list = await request("/deposits");
+  // scope="stock" restringe à visão de ESTOQUE (gestão: só o depósito
+  // administrativo; professor: turma ativa ou união de todas). Sem
+  // scope, retorna a visão de gestão de entidade (todos para gestão).
+  async deposits({ scope, classId } = {}) {
+    const list = await request("/deposits", { params: { scope, class_id: classId } });
     return list || [];
   },
-  async createDeposit({ name, description }) {
-    return request("/deposits", { method: "POST", body: { name, description } });
+  async createDeposit({ name, description, isAdministrative }) {
+    return request("/deposits", { method: "POST", body: { name, description, is_administrative: !!isAdministrative } });
   },
-  async updateDeposit(id, { name, description }) {
-    return request(`/deposits/${id}`, { method: "PATCH", body: { name, description } });
+  async updateDeposit(id, { name, description, isAdministrative }) {
+    return request(`/deposits/${id}`, { method: "PATCH", body: { name, description, is_administrative: !!isAdministrative } });
   },
   async deleteDeposit(id) {
     return request(`/deposits/${id}`, { method: "DELETE" });
   },
 
   // ── Inventário (itens de estoque) ───────────────────────────
-  async inventory(depositId) {
-    const list = await request("/inventory", { params: { deposit_id: depositId } });
+  async inventory(depositId, classId) {
+    const list = await request("/inventory", { params: { deposit_id: depositId, class_id: classId } });
     return list || [];
   },
   async createInventoryItem({ depositId, name, sku, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
@@ -152,8 +155,8 @@ export const API = {
       body: { inventory_item_id: inventoryItemId, type, quantity, note },
     });
   },
-  async movements({ depositId } = {}) {
-    const list = await request("/inventory/movements", { params: { deposit_id: depositId } });
+  async movements({ depositId, classId } = {}) {
+    const list = await request("/inventory/movements", { params: { deposit_id: depositId, class_id: classId } });
     return list || [];
   },
 
@@ -177,6 +180,24 @@ export const API = {
   async deleteClass(id) {
     return request(`/classes/${id}`, { method: "DELETE" });
   },
+
+  // ── Suporte ──────────────────────────────────────────────────
+  /** Somente professor: abre um chamado. O código é validado no backend. */
+  async createSupportTicket({ categoria, tipo, codigo, descricao }) {
+    return request("/support/tickets", {
+      method: "POST",
+      body: { categoria, tipo, codigo, descricao },
+    });
+  },
+  /** Somente gestão: lista todos os chamados. */
+  async supportTickets() {
+    const list = await request("/support/tickets");
+    return list || [];
+  },
+  /** Somente gestão: apaga todo o histórico, mediante código administrativo. */
+  async clearSupportHistory(adminCode) {
+    return request("/support/tickets", { method: "DELETE", body: { admin_code: adminCode } });
+  },
 };
 
 /**
@@ -191,6 +212,7 @@ export function normalizeUser(u) {
     name: u.name,
     email: u.email,
     role: u.role, // "professor" | "gestao"
+    supportCode: u.support_code || "",
     active: u.active,
     classes: u.classes || [],
     deposits: u.deposits || [],

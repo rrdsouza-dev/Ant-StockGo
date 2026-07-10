@@ -157,7 +157,8 @@ func (r *ClassRepository) DepositIDs(classID string) ([]string, error) {
 
 // DepositIDsForProfessor retorna, sem duplicatas, todos os depósitos
 // alcançáveis pelo professor através de QUALQUER turma à qual pertence.
-// Esta é a regra de negócio "turmas definem acesso aos estoques".
+// Esta é a regra de negócio "turmas definem acesso aos estoques" —
+// usada como união quando nenhuma turma específica está "ativa" na sessão.
 func (r *ClassRepository) DepositIDsForProfessor(userID string) ([]string, error) {
 	query := `
 		SELECT DISTINCT cd.deposit_id
@@ -172,10 +173,20 @@ func (r *ClassRepository) DepositIDsForProfessor(userID string) ([]string, error
 	return scanStrings(rows)
 }
 
-// AllDepositIDs retorna todos os ids de depósitos ativos (usado para dar
-// à gestão acesso irrestrito nas mesmas rotas que filtram por turma).
-func (r *ClassRepository) AllDepositIDs() ([]string, error) {
-	rows, err := r.db.Query(`SELECT id FROM deposits WHERE active = true`)
+// DepositIDsForProfessorClass retorna os depósitos de UMA turma
+// específica, mas só se o professor de fato estiver vinculado a ela —
+// o JOIN com class_teachers filtrando por user_id é o que garante isso;
+// se o professor não pertence à turma informada, a consulta não retorna
+// nada (nunca confia no class_id vindo do cliente sem checar o vínculo).
+// Usado quando o professor "escolhe uma turma" para trabalhar na sessão
+// (ver item "Escolha de turma" da especificação).
+func (r *ClassRepository) DepositIDsForProfessorClass(userID, classID string) ([]string, error) {
+	query := `
+		SELECT DISTINCT cd.deposit_id
+		FROM class_deposits cd
+		JOIN class_teachers ct ON ct.class_id = cd.class_id
+		WHERE ct.user_id = $1 AND cd.class_id = $2`
+	rows, err := r.db.Query(query, userID, classID)
 	if err != nil {
 		return nil, err
 	}

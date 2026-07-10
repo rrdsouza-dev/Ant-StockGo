@@ -21,12 +21,13 @@ func NewInventoryHandler(inventory *services.InventoryService) *InventoryHandler
 	return &InventoryHandler{inventory: inventory}
 }
 
-// List — GET /inventory?deposit_id=
+// List — GET /inventory?deposit_id=&class_id=
 func (h *InventoryHandler) List(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	depositID := c.Query("deposit_id")
+	classID := c.Query("class_id")
 
-	items, err := h.inventory.List(user, depositID)
+	items, err := h.inventory.List(user, depositID, classID)
 	if err != nil {
 		respondServiceError(c, err)
 		return
@@ -71,7 +72,10 @@ func (r inventoryItemRequest) toItemInput() services.ItemInput {
 	}
 }
 
-// Create — POST /inventory (somente gestão)
+// Create — POST /inventory
+// Disponível para qualquer usuário com acesso ao estoque do depósito
+// informado (professor na turma dele, gestão no depósito administrativo)
+// — ver InventoryService.Create / DepositService.CanAccess.
 func (h *InventoryHandler) Create(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	var req inventoryItemRequest
@@ -87,7 +91,7 @@ func (h *InventoryHandler) Create(c *gin.Context) {
 	c.JSON(http.StatusCreated, item)
 }
 
-// Update — PATCH /inventory/:id (somente gestão)
+// Update — PATCH /inventory/:id
 func (h *InventoryHandler) Update(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	id := c.Param("id")
@@ -104,7 +108,7 @@ func (h *InventoryHandler) Update(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// Delete — DELETE /inventory/:id (somente gestão)
+// Delete — DELETE /inventory/:id
 func (h *InventoryHandler) Delete(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	id := c.Param("id")
@@ -141,12 +145,13 @@ func (h *InventoryHandler) Move(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"item": item, "movement": movement})
 }
 
-// Movements — GET /inventory/movements?deposit_id=&limit=
+// Movements — GET /inventory/movements?deposit_id=&class_id=&limit=
 func (h *InventoryHandler) Movements(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	depositID := c.Query("deposit_id")
+	classID := c.Query("class_id")
 
-	movements, err := h.inventory.ListMovements(user, depositID, 200)
+	movements, err := h.inventory.ListMovements(user, depositID, classID, 200)
 	if err != nil {
 		respondServiceError(c, err)
 		return

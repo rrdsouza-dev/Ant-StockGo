@@ -7,9 +7,18 @@ import (
 	"wms-backend/internal/repositories"
 )
 
-// DepositService aplica as regras de negócio sobre depósitos: apenas a
-// gestão pode criar/editar/desativar; professores só podem visualizar os
-// depósitos vinculados às suas turmas (via ClassService.AccessibleDepositIDs).
+// DepositService aplica as regras de negócio sobre depósitos.
+//
+// Há duas visões deliberadamente distintas neste service, que não devem
+// ser confundidas:
+//   - List (entidade administrável): quem pode criar/editar/excluir um
+//     depósito como registro. A gestão continua vendo e gerenciando TODOS
+//     os depósitos aqui — é o que alimenta a tela "Depósitos" e o seletor
+//     de depósitos ao vincular uma turma.
+//   - ListForStock / CanAccess (acesso ao ESTOQUE): quais depósitos um
+//     usuário pode ler/mexer itens e movimentações. A gestão só acessa o
+//     depósito administrativo; o professor só acessa os depósitos das
+//     suas turmas (opcionalmente restrito a uma única turma "ativa").
 type DepositService struct {
 	deposits *repositories.DepositRepository
 	classes  *ClassService
@@ -20,34 +29,50 @@ func NewDepositService(deposits *repositories.DepositRepository, classes *ClassS
 }
 
 // Create cadastra um novo depósito. Chamado apenas por handlers já
-// protegidos por middleware.RequireRole(gestao).
-func (s *DepositService) Create(name, description, createdBy string) (domain.Deposit, error) {
+// protegidos por middleware.RequireRole(gestao). isAdministrative marca
+// (de forma exclusiva — ver DepositRepository.Create) o depósito de uso
+// da gestão.
+func (s *DepositService) Create(name, description, createdBy string, isAdministrative bool) (domain.Deposit, error) {
 	if name == "" {
 		return domain.Deposit{}, errors.New("nome do depósito é obrigatório")
 	}
-	return s.deposits.Create(name, description, createdBy)
+	return s.deposits.Create(name, description, createdBy, isAdministrative)
 }
 
-// List retorna os depósitos visíveis para o usuário autenticado, já
-// filtrados pela regra de turmas quando o perfil é professor.
+// List retorna os depósitos como ENTIDADE administrável: todos para a
+// gestão (que continua gerenciando qualquer depósito), apenas os
+// vinculados às turmas para o professor.
 func (s *DepositService) List(user domain.User) ([]domain.Deposit, error) {
-	ids, err := s.classes.AccessibleDepositIDs(user)
-	if err != nil {
-		return nil, err
-	}
 	if user.Role == domain.RoleGestao {
 		return s.deposits.List()
+	}
+	ids, err := s.classes.AccessibleDepositIDs(user, "")
+	if err != nil {
+		return nil, err
 	}
 	return s.deposits.ListByIDs(ids)
 }
 
-// CanAccess confirma se o usuário pode ler/movimentar um depósito
-// específico — usado pelo InventoryService antes de qualquer movimentação.
-func (s *DepositService) CanAccess(user domain.User, depositID string) (bool, error) {
-	if user.Role == domain.RoleGestao {
-		return true, nil
+// ListForStock retorna os depósitos cujo ESTOQUE o usuário pode acessar:
+// para a gestão, apenas o depósito administrativo; para o professor, os
+// depósitos da turma "ativa" (classID) ou a união de todas as suas
+// turmas quando classID vier vazio. Usada pelas telas de Estoque,
+// Movimentações, Relatórios, Exportações e Dashboard.
+func (s *DepositService) ListForStock(user domain.User, classID string) ([]domain.Deposit, error) {
+	ids, err := s.classes.AccessibleDepositIDs(user, classID)
+	if err != nil {
+		return nil, err
 	}
-	ids, err := s.classes.AccessibleDepositIDs(user)
+	return s.deposits.ListByIDs(ids)
+}
+
+// CanAccess confirma se o usuário pode ler/movimentar o ESTOQUE de um
+// depósito específico — usado pelo InventoryService antes de qualquer
+// leitura ou escrita de item/movimentação. Deliberadamente NÃO dá
+// passe-livre para gestão: ela só acessa o depósito administrativo,
+// exatamente como o professor só acessa os das suas turmas.
+func (s *DepositService) CanAccess(user domain.User, depositID, classID string) (bool, error) {
+	ids, err := s.classes.AccessibleDepositIDs(user, classID)
 	if err != nil {
 		return false, err
 	}
@@ -59,8 +84,8 @@ func (s *DepositService) CanAccess(user domain.User, depositID string) (bool, er
 	return false, nil
 }
 
-func (s *DepositService) Update(id, name, description string) (domain.Deposit, error) {
-	return s.deposits.Update(id, name, description)
+func (s *DepositService) Update(id, name, description string, isAdministrative bool) (domain.Deposit, error) {
+	return s.deposits.Update(id, name, description, isAdministrative)
 }
 
 func (s *DepositService) Deactivate(id string) error {

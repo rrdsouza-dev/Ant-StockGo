@@ -19,16 +19,32 @@ func NewClassService(classes *repositories.ClassRepository, deposits *repositori
 }
 
 // AccessibleDepositIDs é a regra de autorização usada por TODOS os
-// services que leem/escrevem depósitos ou inventário.
-// Gestão tem acesso total; professor só acessa os depósitos das turmas
-// às quais está vinculado.
+// services que leem/escrevem ESTOQUE (itens de inventário e
+// movimentações) — não confundir com a listagem de depósitos como
+// entidade administrável (essa continua irrestrita para a gestão, ver
+// DepositService.List).
+//
+// Regra atual (pós-especificação de permissões): a gestão só acessa o
+// estoque do(s) depósito(s) marcado(s) como administrativo — ela NÃO
+// enxerga o estoque das turmas, mesmo continuando responsável por
+// criar/editar/excluir turmas e depósitos como entidades. O professor
+// acessa os depósitos da turma "ativa" na sessão quando informada
+// (classID), ou a união de todas as suas turmas quando não informada
+// (ex.: telas que ainda não pedem uma turma específica).
 //
 // Fluxo no sistema: chamado por DepositService e InventoryService antes
 // de qualquer leitura ou escrita, nunca pulado — é aqui que a regra
 // "nenhuma regra de acesso pode existir no frontend" é aplicada de fato.
-func (s *ClassService) AccessibleDepositIDs(user domain.User) ([]string, error) {
+func (s *ClassService) AccessibleDepositIDs(user domain.User, classID string) ([]string, error) {
 	if user.Role == domain.RoleGestao {
-		return s.classes.AllDepositIDs()
+		return s.deposits.AdministrativeIDs()
+	}
+	if classID != "" {
+		// A consulta já filtra por user_id E class_id juntos: se o
+		// professor não estiver de fato vinculado à turma informada,
+		// não retorna nada — nunca confia no classID vindo do cliente
+		// sem checar o vínculo real no banco.
+		return s.classes.DepositIDsForProfessorClass(user.ID, classID)
 	}
 	return s.classes.DepositIDsForProfessor(user.ID)
 }

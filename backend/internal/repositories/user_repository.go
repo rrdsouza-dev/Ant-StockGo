@@ -9,6 +9,8 @@ import (
 
 var ErrNotFound = errors.New("registro não encontrado")
 
+const userColumns = `id, name, email, password_hash, role, support_code, active, created_at, updated_at`
+
 // UserRepository isola todo acesso SQL à tabela `users`.
 // Nenhuma outra camada do sistema executa SQL diretamente sobre esta tabela.
 type UserRepository struct {
@@ -19,30 +21,27 @@ func NewUserRepository(db *sql.DB) *UserRepository {
 	return &UserRepository{db: db}
 }
 
-// Create insere um usuário já aprovado (chamado apenas pelo fluxo de aprovação).
+// Create insere um usuário já aprovado (chamado apenas pelo fluxo de
+// aprovação). SupportCode é gerado pelo AuthService antes de chamar aqui.
 func (r *UserRepository) Create(u domain.User) (domain.User, error) {
 	query := `
-		INSERT INTO users (name, email, password_hash, role, active)
-		VALUES ($1, $2, $3, $4, true)
-		RETURNING id, name, email, password_hash, role, active, created_at, updated_at`
-	row := r.db.QueryRow(query, u.Name, u.Email, u.PasswordHash, u.Role)
+		INSERT INTO users (name, email, password_hash, role, support_code, active)
+		VALUES ($1, $2, $3, $4, $5, true)
+		RETURNING ` + userColumns
+	row := r.db.QueryRow(query, u.Name, u.Email, u.PasswordHash, u.Role, u.SupportCode)
 	return scanUser(row)
 }
 
 // FindByEmail busca um usuário ativo pelo e-mail (usado no login).
 func (r *UserRepository) FindByEmail(email string) (domain.User, error) {
-	query := `
-		SELECT id, name, email, password_hash, role, active, created_at, updated_at
-		FROM users WHERE email = $1`
+	query := `SELECT ` + userColumns + ` FROM users WHERE email = $1`
 	row := r.db.QueryRow(query, email)
 	return scanUser(row)
 }
 
 // FindByID busca um usuário pelo id (usado por /users/me e middlewares).
 func (r *UserRepository) FindByID(id string) (domain.User, error) {
-	query := `
-		SELECT id, name, email, password_hash, role, active, created_at, updated_at
-		FROM users WHERE id = $1`
+	query := `SELECT ` + userColumns + ` FROM users WHERE id = $1`
 	row := r.db.QueryRow(query, id)
 	return scanUser(row)
 }
@@ -56,9 +55,7 @@ func (r *UserRepository) EmailExists(email string) (bool, error) {
 
 // List retorna todos os usuários ativos do sistema (usado no painel de gestão).
 func (r *UserRepository) List() ([]domain.User, error) {
-	query := `
-		SELECT id, name, email, password_hash, role, active, created_at, updated_at
-		FROM users ORDER BY created_at DESC`
+	query := `SELECT ` + userColumns + ` FROM users ORDER BY created_at DESC`
 	rows, err := r.db.Query(query)
 	if err != nil {
 		return nil, err
@@ -97,15 +94,25 @@ func (r *UserRepository) ClassIDsForProfessor(userID string) ([]string, error) {
 
 func scanUser(row *sql.Row) (domain.User, error) {
 	var u domain.User
-	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt)
+	var supportCode sql.NullString
+	err := row.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &supportCode, &u.Active, &u.CreatedAt, &u.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return domain.User{}, ErrNotFound
 	}
-	return u, err
+	if err != nil {
+		return domain.User{}, err
+	}
+	u.SupportCode = supportCode.String
+	return u, nil
 }
 
 func scanUserRows(rows *sql.Rows) (domain.User, error) {
 	var u domain.User
-	err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &u.Active, &u.CreatedAt, &u.UpdatedAt)
-	return u, err
+	var supportCode sql.NullString
+	err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.PasswordHash, &u.Role, &supportCode, &u.Active, &u.CreatedAt, &u.UpdatedAt)
+	if err != nil {
+		return domain.User{}, err
+	}
+	u.SupportCode = supportCode.String
+	return u, nil
 }

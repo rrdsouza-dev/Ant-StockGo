@@ -38,6 +38,7 @@ func main() {
 	inventoryRepo := repositories.NewInventoryRepository(db)
 	classRepo := repositories.NewClassRepository(db)
 	categoryRepo := repositories.NewCategoryRepository(db)
+	supportRepo := repositories.NewSupportTicketRepository(db)
 
 	// Services (regras de negócio)
 	classService := services.NewClassService(classRepo, depositRepo)
@@ -46,6 +47,7 @@ func main() {
 	authService := services.NewAuthService(userRepo, pendingRepo, jwtManager)
 	userService := services.NewUserService(userRepo, classService, depositService)
 	categoryService := services.NewCategoryService(categoryRepo)
+	supportService := services.NewSupportService(supportRepo, cfg.SupportAdminCode)
 
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
@@ -55,6 +57,7 @@ func main() {
 		Inventory:  handlers.NewInventoryHandler(inventoryService),
 		Classes:    handlers.NewClassHandler(classService),
 		Categories: handlers.NewCategoryHandler(categoryService),
+		Support:    handlers.NewSupportHandler(supportService),
 		JWTManager: jwtManager,
 		UserRepo:   userRepo,
 	}

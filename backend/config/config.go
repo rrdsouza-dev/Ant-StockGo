@@ -23,6 +23,12 @@ type Config struct {
 	JWTExpiryHrs  int
 	ServerPort    string
 	AllowedOrigin string
+
+	// SupportAdminCode é exigido da gestão para limpar o histórico de
+	// chamados de suporte (ver SupportService.ClearHistory). Sem valor
+	// configurado, a limpeza fica bloqueada por padrão (nunca aceita
+	// código vazio como válido).
+	SupportAdminCode string
 }
 
 // Load lê o arquivo .env (se existir) e as variáveis de ambiente do
@@ -46,10 +52,15 @@ func Load() *Config {
 		JWTExpiryHrs:  24,
 		ServerPort:    getEnv("PORT", "8000"),
 		AllowedOrigin: getEnv("ALLOWED_ORIGIN", "*"),
+
+		SupportAdminCode: getEnv("SUPPORT_ADMIN_CODE", ""),
 	}
 
 	if cfg.JWTSecret == "" {
 		log.Fatal("JWT_SECRET não definido: configure-o no .env antes de iniciar o servidor")
+	}
+	if cfg.SupportAdminCode == "" {
+		log.Println("aviso: SUPPORT_ADMIN_CODE não definido — a limpeza do histórico de suporte ficará sempre bloqueada até configurá-lo")
 	}
 
 	return cfg

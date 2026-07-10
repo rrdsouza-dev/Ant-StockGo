@@ -34,7 +34,10 @@ function userInfoCard() {
     el("span", { class: "chip chip-info sidebar-user-chip", text: roleLabel }),
   ];
   if (u.role === "professor" && u.classes?.length) {
-    meta.push(el("div", { class: "sidebar-user-turmas", text: "Turmas: " + u.classes.map((c) => c.name).join(", ") }));
+    const activeClass = u.classes.find((c) => c.id === session.classId);
+    meta.push(el("div", { class: "sidebar-user-turmas", text: activeClass
+      ? `Turma ativa: ${activeClass.name}`
+      : "Turmas: " + u.classes.map((c) => c.name).join(", ") }));
   }
 
   return el("div", { class: "sidebar-user" }, [
@@ -46,6 +49,11 @@ function userInfoCard() {
 export function Sidebar(currentPath) {
   const roleAtual = session.user?.role;
   const navVisivel = NAV.filter((item) => !item.gestaoOnly || roleAtual === "gestao");
+
+  const bottomVisivel = [...BOTTOM];
+  if (roleAtual === "professor" && (session.user?.classes?.length || 0) > 1) {
+    bottomVisivel.unshift({ path: "/choose-class", label: "Trocar turma", icon: "repeat" });
+  }
 
   const linkNode = (item) => {
     const isActive = currentPath?.startsWith(item.path);
@@ -80,7 +88,7 @@ export function Sidebar(currentPath) {
     el("div", { class: "brand" }, [el("img", { src: "assets/images/logo-dark.jpg", alt: "ANT Stock" })]),
     userInfoCard(),
     el("nav", {}, navVisivel.map(linkNode)),
-    el("div", { class: "nav-bottom" }, BOTTOM.map(bottomNode)),
+    el("div", { class: "nav-bottom" }, bottomVisivel.map(bottomNode)),
   ]);
 
   renderIcons(aside);

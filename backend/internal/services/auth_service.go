@@ -1,6 +1,7 @@
 package services
 
 import (
+	"crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -141,6 +142,7 @@ func (s *AuthService) ApproveOrReject(pendingID string, approve bool) (*domain.U
 		Email:        p.Email,
 		PasswordHash: p.PasswordHash,
 		Role:         p.Role,
+		SupportCode:  generateSupportCode(),
 	})
 	if err != nil {
 		return nil, err
@@ -149,4 +151,22 @@ func (s *AuthService) ApproveOrReject(pendingID string, approve bool) (*domain.U
 		return nil, err
 	}
 	return &created, nil
+}
+
+// generateSupportCode cria o código pessoal usado para validar a
+// abertura de chamados de suporte (formato SKU-XXX-XXX). Gerado uma
+// única vez, na aprovação da conta — visível ao próprio usuário via
+// GET /users/me (campo support_code).
+func generateSupportCode() string {
+	const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789" // sem O/0/I/1 para evitar ambiguidade visual
+	segment := func() string {
+		b := make([]byte, 3)
+		buf := make([]byte, 3)
+		_, _ = rand.Read(buf)
+		for i, v := range buf {
+			b[i] = alphabet[int(v)%len(alphabet)]
+		}
+		return string(b)
+	}
+	return fmt.Sprintf("SKU-%s-%s", segment(), segment())
 }

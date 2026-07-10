@@ -19,6 +19,7 @@ type Dependencies struct {
 	Inventory  *handlers.InventoryHandler
 	Classes    *handlers.ClassHandler
 	Categories *handlers.CategoryHandler
+	Support    *handlers.SupportHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -26,11 +27,19 @@ type Dependencies struct {
 
 // Setup registra todas as rotas da API sob o prefixo /api/v1, aplicando
 // os middlewares de autenticação e autorização exatamente como descrito
-// nas regras de negócio: professor tem acesso de leitura/movimentação,
-// gestão tem acesso total.
+// nas regras de negócio.
+//
+// Importante: criar/editar/excluir/movimentar ITENS DE ESTOQUE deixou de
+// ser exclusividade da gestão — qualquer usuário autenticado pode chamar
+// essas rotas, e é o InventoryService (via DepositService.CanAccess) quem
+// decide, por depósito, se o acesso é permitido. Isso é o que torna
+// possível o professor ter CRUD completo dentro das turmas dele, e a
+// gestão ficar restrita ao depósito administrativo, sem duplicar a regra
+// de autorização aqui nas rotas.
 func Setup(router *gin.Engine, deps Dependencies) {
 	authRequired := middleware.RequireAuth(deps.JWTManager, deps.UserRepo)
 	gestaoOnly := middleware.RequireRole(domain.RoleGestao)
+	professorOnly := middleware.RequireRole(domain.RoleProfessor)
 
 	router.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"status": "ok"}) })
 
@@ -50,7 +59,10 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		users.GET("/me", deps.Users.Me)
 		users.GET("", gestaoOnly, deps.Users.List)
 
-		// ── Depósitos (estoques) ────────────────────────────────
+		// ── Depósitos (estoques) — gestão de ENTIDADE ───────────
+		// Criar/editar/excluir o depósito como registro continua
+		// restrito à gestão. Acesso ao ESTOQUE de cada depósito é uma
+		// decisão totalmente separada, resolvida dentro de /inventory.
 		deposits := api.Group("/deposits", authRequired)
 		deposits.GET("", deps.Deposits.List)
 		deposits.POST("", gestaoOnly, deps.Deposits.Create)
@@ -58,11 +70,14 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		deposits.DELETE("/:id", gestaoOnly, deps.Deposits.Delete)
 
 		// ── Inventário e movimentações ──────────────────────────
+		// Sem gestaoOnly: o escopo de acesso por depósito (professor na
+		// turma dele, gestão só no depósito administrativo) já é
+		// aplicado dentro do InventoryService.
 		inventory := api.Group("/inventory", authRequired)
 		inventory.GET("", deps.Inventory.List)
-		inventory.POST("", gestaoOnly, deps.Inventory.Create)
-		inventory.PATCH("/:id", gestaoOnly, deps.Inventory.Update)
-		inventory.DELETE("/:id", gestaoOnly, deps.Inventory.Delete)
+		inventory.POST("", deps.Inventory.Create)
+		inventory.PATCH("/:id", deps.Inventory.Update)
+		inventory.DELETE("/:id", deps.Inventory.Delete)
 		inventory.POST("/move", deps.Inventory.Move)
 		inventory.GET("/movements", deps.Inventory.Movements)
 
@@ -77,5 +92,14 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		categories := api.Group("/categories", authRequired)
 		categories.GET("", deps.Categories.List)
 		categories.POST("", gestaoOnly, deps.Categories.Create)
+
+		// ── Suporte ──────────────────────────────────────────────
+		// Abrir chamado é exclusivo do professor; visualizar, exportar
+		// (feito no frontend com os dados já retornados) e limpar o
+		// histórico são exclusivos da gestão.
+		support := api.Group("/support", authRequired)
+		support.POST("/tickets", professorOnly, deps.Support.Create)
+		support.GET("/tickets", gestaoOnly, deps.Support.List)
+		support.DELETE("/tickets", gestaoOnly, deps.Support.ClearAll)
 	}
 }

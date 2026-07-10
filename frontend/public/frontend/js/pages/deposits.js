@@ -49,6 +49,11 @@ export function DepositsPage(root, ctx) {
           columns: [
             { key: "name", label: "Nome" },
             { key: "description", label: "Descrição", render: (r) => el("span", { text: r.description || "—" }) },
+            { key: "is_administrative", label: "Uso", render: (r) =>
+              r.is_administrative
+                ? el("span", { class: "chip chip-warning", text: "Administrativo" })
+                : el("span", { class: "muted", text: "Turma" })
+            },
             { key: "data_fmt", label: "Criado em" },
             ...(isGestao ? [{
               key: "acoes", label: "Ações", render: (r) =>
@@ -73,6 +78,7 @@ export function DepositsPage(root, ctx) {
       const f = {
         name: el("input", { class: "input", value: deposit?.name || "", placeholder: "Nome do depósito *" }),
         desc: el("input", { class: "input", value: deposit?.description || "", placeholder: "Descrição (opcional)" }),
+        isAdmin: el("input", { type: "checkbox", checked: !!deposit?.is_administrative }),
       };
       const errEl = el("div", { class: "error-text" });
       const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), isEdit ? "Salvar" : "Criar"]);
@@ -83,6 +89,13 @@ export function DepositsPage(root, ctx) {
         el("div", { class: "product-modal-body" }, [
           el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), f.name]),
           el("div", { class: "field" }, [el("label", { class: "field-label", text: "Descrição" }), f.desc]),
+          el("div", { class: "field" }, [
+            el("label", { style: "display:flex;align-items:center;gap:8px;cursor:pointer" }, [
+              f.isAdmin,
+              el("span", { text: "Depósito administrativo (uso exclusivo da gestão)" }),
+            ]),
+            el("p", { class: "muted", style: "font-size:0.78em;margin-top:4px", text: "Só pode haver um depósito administrativo por vez — marcar este desmarca automaticamente o anterior. É o único depósito cujo estoque a gestão acessa; os demais são acessados pelas turmas vinculadas." }),
+          ]),
           errEl,
         ]),
         el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
@@ -99,7 +112,7 @@ export function DepositsPage(root, ctx) {
         errEl.textContent = "";
         saveBtn.disabled = true;
         try {
-          const data = { name, description: f.desc.value.trim() };
+          const data = { name, description: f.desc.value.trim(), isAdministrative: f.isAdmin.checked };
           if (isEdit) await API.updateDeposit(deposit.id, data);
           else await API.createDeposit(data);
           notify(isEdit ? "Depósito atualizado!" : "Depósito criado!", "success");

@@ -94,7 +94,19 @@ export function LoginPage(root) {
         clearLoginAttempts();
         session.signIn(user, token);
         notify(`Bem-vindo, ${user.name}!`);
-        router.navigate("/dashboard");
+
+        // Escolha de turma: só se aplica a professor. Uma turma vinculada
+        // -> entra direto nela. Mais de uma -> pede para escolher. Nenhuma
+        // -> segue para o dashboard (telas de estoque mostrarão o estado
+        // vazio apropriado).
+        if (user.role === "professor" && user.classes?.length > 1) {
+          router.navigate("/choose-class");
+        } else if (user.role === "professor" && user.classes?.length === 1) {
+          session.setClassId(user.classes[0].id);
+          router.navigate("/dashboard");
+        } else {
+          router.navigate("/dashboard");
+        }
       } catch (err) {
         // Mostra a mensagem real do backend (ex.: "conta pendente de
         // aprovação", "e-mail ou senha inválidos"), nunca um texto genérico.
@@ -129,6 +141,10 @@ export function LoginPage(root) {
   ]);
 
   const wrap = el("div", { class: "auth-wrap anim-fade" }, [left, right]);
+  const schoolBadge = el("div", { class: "school-badge" }, [
+    el("img", { src: "assets/images/logoAlfredo.png", alt: "Escola Estadual Alfredo Inácio Trindade" }),
+  ]);
+  root.appendChild(schoolBadge);
   root.appendChild(wrap);
   renderIcons(root);
 }

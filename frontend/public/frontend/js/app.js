@@ -14,7 +14,8 @@ import { ProfilePage } from "./pages/profile.js";
 import { SettingsPage } from "./pages/settings.js";
 import { ExportsPage } from "./pages/exports.js";
 import { UsersPage } from "./pages/users.js";
-import { PlaceholderPage } from "./pages/placeholder.js";
+import { SupportPage } from "./pages/support.js";
+import { ChooseClassPage } from "./pages/choose-class.js";
 
 // Public
 router.register("/login", LoginPage, { public: true });
@@ -31,13 +32,24 @@ router.register("/users", UsersPage);
 router.register("/settings", SettingsPage);
 router.register("/profile", ProfilePage);
 router.register("/exports", ExportsPage);
-router.register("/support", PlaceholderPage("Suporte", "Fale com a equipe ANT Stock.", "life-buoy"));
+router.register("/support", SupportPage);
+router.register("/choose-class", ChooseClassPage);
 
 router.setGuard((route, path) => {
   const isPublic = !!route?.public;
   const authed = session.isAuthenticated();
   if (!authed && !isPublic) return { redirect: "/login" };
   if (authed && isPublic) return { redirect: "/dashboard" };
+
+  // Escolha de turma: um professor vinculado a mais de uma turma precisa
+  // escolher com qual trabalhar antes de acessar qualquer tela de dados
+  // (protege contra acesso direto por URL sem passar pela escolha).
+  if (authed && session.user?.role === "professor" && path !== "/choose-class") {
+    const classCount = session.user?.classes?.length || 0;
+    if (classCount > 1 && !session.classId) {
+      return { redirect: "/choose-class" };
+    }
+  }
   return null;
 });
 

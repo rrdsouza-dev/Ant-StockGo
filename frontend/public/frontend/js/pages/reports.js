@@ -2,6 +2,7 @@ import { el, renderIcons } from "../utils/helpers.js";
 import { AppShell } from "./_shell.js";
 import { DataTable } from "../components/table.js";
 import { API } from "../services/api.js";
+import { session } from "../services/store.js";
 import { exportExcel } from "../utils/exportExcel.js";
 import { exportTxt } from "../utils/exportTxt.js";
 import { notify } from "../components/notifications.js";
@@ -48,15 +49,15 @@ export function ReportsPage(root, ctx) {
 
     async function loadReports() {
       try {
-        deposits = await API.deposits();
+        deposits = await API.deposits({ scope: "stock", classId: session.classId });
         depositSelect.innerHTML = "";
         depositSelect.appendChild(el("option", { value: "", text: "Todos os depósitos acessíveis" }));
         deposits.forEach((d) => depositSelect.appendChild(el("option", { value: d.id, text: d.name })));
         depositSelect.value = depositId;
 
         const [movements, allItems] = await Promise.all([
-          API.movements({ depositId: depositId || undefined }),
-          API.inventory(depositId || undefined),
+          API.movements({ depositId: depositId || undefined, classId: session.classId }),
+          API.inventory(depositId || undefined, session.classId),
         ]);
         items = allItems;
         movementsData = movements.map((m) => normalizeMovement(m));

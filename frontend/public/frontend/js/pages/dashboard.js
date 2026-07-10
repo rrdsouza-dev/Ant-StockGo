@@ -1,6 +1,7 @@
 import { el, renderIcons } from "../utils/helpers.js";
 import { AppShell } from "./_shell.js";
 import { API } from "../services/api.js";
+import { session } from "../services/store.js";
 import { exportExcel } from "../utils/exportExcel.js";
 import { exportTxt } from "../utils/exportTxt.js";
 import { notify } from "../components/notifications.js";
@@ -66,9 +67,9 @@ export function DashboardPage(root, ctx) {
 
     async function loadDashboard() {
       try {
-        const deposits = await API.deposits();
+        const deposits = await API.deposits({ scope: "stock", classId: session.classId });
         if (!deposits.length) {
-          notify("Nenhum depósito vinculado ao usuário.", "warning");
+          notify("Nenhum depósito de estoque disponível para este usuário.", "warning");
           updateStats([], [], deposits);
           renderMovementsTable([]);
           return;
@@ -76,8 +77,8 @@ export function DashboardPage(root, ctx) {
         statDepositos.textContent = deposits.length.toLocaleString("pt-BR");
 
         const [items, movements] = await Promise.all([
-          API.inventory().catch(() => []),
-          API.movements().catch(() => []),
+          API.inventory(undefined, session.classId).catch(() => []),
+          API.movements({ classId: session.classId }).catch(() => []),
         ]);
 
         movementsData = movements.map((m) => normalizeMovement(m, items));

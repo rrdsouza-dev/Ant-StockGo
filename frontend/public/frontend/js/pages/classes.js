@@ -99,14 +99,41 @@ export function ClassesPage(root, ctx) {
       return { node: wrap, get: () => Array.from(state) };
     }
 
+    /**
+     * checkboxTeacherList — vínculo professor/turma por checkbox, exibindo
+     * nome E e-mail de cada professor (exigido pela especificação). As
+     * mudanças só têm efeito quando o formulário é salvo (SetTeachers no
+     * backend), momento em que refletem imediatamente nas permissões —
+     * não há cache de permissão em nenhuma camada.
+     */
+    function checkboxTeacherList(options, selectedIds) {
+      const state = new Set(selectedIds);
+      if (!options.length) {
+        return { node: el("p", { class: "muted", text: "Nenhum professor ativo cadastrado ainda." }), get: () => [] };
+      }
+      const wrap = el("div", { class: "checkbox-list" });
+      options.forEach((opt) => {
+        const checkbox = el("input", { type: "checkbox", checked: state.has(opt.id) });
+        checkbox.addEventListener("change", () => {
+          if (checkbox.checked) state.add(opt.id); else state.delete(opt.id);
+        });
+        wrap.appendChild(el("label", { class: "checkbox-list-item" }, [
+          checkbox,
+          el("div", {}, [
+            el("div", { class: "checkbox-list-name", text: opt.name }),
+            el("div", { class: "checkbox-list-email", text: opt.email }),
+          ]),
+        ]));
+      });
+      return { node: wrap, get: () => Array.from(state) };
+    }
+
     function openClassModal(cls) {
       const isEdit = !!cls;
       const nameInput = el("input", { class: "input", value: cls?.name || "", placeholder: "Nome da turma *" });
       const descInput = el("input", { class: "input", value: cls?.description || "", placeholder: "Descrição (opcional)" });
 
-      const teacherPicker = teachers.length
-        ? multiSelect(teachers, cls?.teacher_ids || [])
-        : { node: el("p", { class: "muted", text: "Nenhum professor ativo cadastrado ainda." }), get: () => [] };
+      const teacherPicker = checkboxTeacherList(teachers, cls?.teacher_ids || []);
       const depositPicker = deposits.length
         ? multiSelect(deposits, (cls?.deposits || []).map((d) => d.id))
         : { node: el("p", { class: "muted", text: "Nenhum depósito cadastrado ainda." }), get: () => [] };

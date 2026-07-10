@@ -53,7 +53,6 @@ export function InventoryPage(root, ctx) {
   let items = [];
   let deposits = [];
   let depositId = null;
-  const isGestao = session.user?.role === "gestao";
 
   AppShell(root, ctx.path, (content) => {
     const head = el("div", { class: "page-head" }, [
@@ -62,12 +61,10 @@ export function InventoryPage(root, ctx) {
         el("p", { class: "muted", text: "Itens de inventário do depósito selecionado e seus saldos atuais." }),
       ]),
       el("div", { class: "exports" }, [
-        isGestao
-          ? el("button", { class: "btn btn-soft", onclick: guardedClick(() => {
-              if (!depositId) { notify("Selecione um depósito.", "warning"); return; }
-              openInventoryItemModal({ depositId, onSave: load });
-            }) }, [el("i", { "data-lucide": "plus" }), "Adicionar item"])
-          : el("span"),
+        el("button", { class: "btn btn-soft", onclick: guardedClick(() => {
+          if (!depositId) { notify("Selecione um depósito.", "warning"); return; }
+          openInventoryItemModal({ depositId, onSave: load });
+        }) }, [el("i", { "data-lucide": "plus" }), "Adicionar item"]),
         el("button", { class: "btn btn-primary", onclick: guardedClick(() => {
           exportTxt(exportRows(), "estoque.txt");
           notify("Exportado TXT.", "success");
@@ -150,10 +147,8 @@ export function InventoryPage(root, ctx) {
           el("div", { class: "pc-qty", html: `${item.quantity}<span>un</span>` }),
           el("div", { class: "pc-actions" }, [
             el("button", { class: "icon-btn", title: "Movimentar", onclick: guardedClick(() => openMoveModal({ item, onSave: load })) }, [el("i", { "data-lucide": "arrow-left-right" })]),
-            ...(isGestao ? [
-              el("button", { class: "icon-btn", title: "Editar", onclick: guardedClick(() => openInventoryItemModal({ depositId, item, onSave: load })) }, [el("i", { "data-lucide": "pencil" })]),
-              el("button", { class: "icon-btn", title: "Desativar", onclick: guardedClick(() => confirmDelete(item)) }, [el("i", { "data-lucide": "trash-2" })]),
-            ] : []),
+            el("button", { class: "icon-btn", title: "Editar", onclick: guardedClick(() => openInventoryItemModal({ depositId, item, onSave: load })) }, [el("i", { "data-lucide": "pencil" })]),
+            el("button", { class: "icon-btn", title: "Desativar", onclick: guardedClick(() => confirmDelete(item)) }, [el("i", { "data-lucide": "trash-2" })]),
           ]),
         ]),
       ]);
@@ -186,10 +181,10 @@ export function InventoryPage(root, ctx) {
       grid.innerHTML = "";
       grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center;grid-column:1/-1" }, ["Carregando estoque…"]));
       try {
-        deposits = await API.deposits();
+        deposits = await API.deposits({ scope: "stock", classId: session.classId });
         if (!deposits.length) {
           grid.innerHTML = "";
-          grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center;grid-column:1/-1" }, ["Nenhum depósito vinculado ao usuário."]));
+          grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center;grid-column:1/-1" }, ["Nenhum depósito de estoque disponível para este usuário."]));
           return;
         }
         depositId = session.depositId && deposits.some((d) => d.id === session.depositId)
@@ -198,7 +193,7 @@ export function InventoryPage(root, ctx) {
         session.setDepositId(depositId);
         renderDepositOptions();
 
-        items = await API.inventory(depositId);
+        items = await API.inventory(depositId, session.classId);
         rerender();
       } catch (err) {
         grid.innerHTML = "";

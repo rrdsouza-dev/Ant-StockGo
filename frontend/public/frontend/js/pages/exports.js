@@ -27,17 +27,18 @@ export function ExportsPage(root, ctx) {
 
     async function loadExports() {
       try {
-        const deposits = await API.deposits();
+        const deposits = await API.deposits({ scope: "stock", classId: session.classId });
         if (!deposits.length) {
           grid.innerHTML = "";
-          grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhum depósito vinculado ao usuário."]));
+          grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhum depósito de estoque disponível para este usuário."]));
           return;
         }
 
-        const [items, movements, classes] = await Promise.all([
-          API.inventory().catch(() => []),
-          API.movements().catch(() => []),
+        const [items, movements, classes, allDeposits] = await Promise.all([
+          API.inventory(undefined, session.classId).catch(() => []),
+          API.movements({ classId: session.classId }).catch(() => []),
           API.classes().catch(() => []),
+          isGestao ? API.deposits().catch(() => []) : Promise.resolve([]),
         ]);
 
         const depositMap = {};
@@ -49,10 +50,11 @@ export function ExportsPage(root, ctx) {
           {
             key: "depositos",
             label: "Depósitos",
-            rows: deposits.map((d) => ({
+            rows: allDeposits.map((d) => ({
               id: d.id,
               nome: d.name,
               descricao: d.description || "",
+              administrativo: d.is_administrative ? "sim" : "não",
               criado_em: d.created_at ? d.created_at.slice(0, 10) : "",
             })),
           },

@@ -112,10 +112,10 @@ export function MovementsPage(root, ctx) {
 
     async function loadMovements() {
       try {
-        deposits = await API.deposits();
+        deposits = await API.deposits({ scope: "stock", classId: session.classId });
         if (!deposits.length) {
           tableContainer.innerHTML = "";
-          tableContainer.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhum depósito vinculado."]));
+          tableContainer.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhum depósito de estoque disponível."]));
           return;
         }
         depositId = session.depositId && deposits.some((d) => d.id === session.depositId)
@@ -125,8 +125,8 @@ export function MovementsPage(root, ctx) {
         renderDepositOptions();
 
         const [movements, inventoryItems] = await Promise.all([
-          API.movements({ depositId }),
-          API.inventory(depositId),
+          API.movements({ depositId, classId: session.classId }),
+          API.inventory(depositId, session.classId),
         ]);
         items = inventoryItems;
         renderManualOptions();

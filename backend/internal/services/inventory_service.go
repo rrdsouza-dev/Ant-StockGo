@@ -26,9 +26,17 @@ type ItemInput struct {
 
 // InventoryService concentra as regras de negócio de itens de estoque e
 // suas movimentações. Toda operação passa primeiro por DepositService
-// para confirmar que o usuário tem acesso ao depósito envolvido — é aqui
-// que a regra "professor só acessa turmas vinculadas" vira, na prática,
-// "professor só movimenta os depósitos das suas turmas".
+// para confirmar que o usuário tem acesso ao ESTOQUE do depósito
+// envolvido — é aqui que as regras "gestão só acessa o depósito
+// administrativo" e "professor só acessa turmas vinculadas" viram, na
+// prática, "só posso criar/editar/excluir/movimentar itens desse depósito".
+//
+// Criar, editar, excluir e movimentar itens NÃO são mais exclusividade da
+// gestão (mudança de permissão da especificação mais recente): qualquer
+// usuário com acesso ao estoque do depósito pode fazer as quatro coisas —
+// o que diferencia os perfis é QUAL depósito cada um alcança
+// (DepositService.CanAccess/ListForStock), não o que cada um pode fazer
+// dentro do depósito que alcança.
 type InventoryService struct {
 	inventory *repositories.InventoryRepository
 	deposits  *DepositService
@@ -40,10 +48,12 @@ func NewInventoryService(inventory *repositories.InventoryRepository, deposits *
 
 // List retorna os itens de inventário do(s) depósito(s) que o usuário
 // pode acessar. Se depositID for informado, restringe a esse depósito
-// (após confirmar acesso); caso contrário, retorna todos os acessíveis.
-func (s *InventoryService) List(user domain.User, depositID string) ([]domain.InventoryItem, error) {
+// (após confirmar acesso); caso contrário, usa classID para restringir à
+// turma "ativa" na sessão (professor) ou ao depósito administrativo
+// (gestão) — ver DepositService.ListForStock.
+func (s *InventoryService) List(user domain.User, depositID, classID string) ([]domain.InventoryItem, error) {
 	if depositID != "" {
-		ok, err := s.deposits.CanAccess(user, depositID)
+		ok, err := s.deposits.CanAccess(user, depositID, classID)
 		if err != nil {
 			return nil, err
 		}
@@ -53,7 +63,7 @@ func (s *InventoryService) List(user domain.User, depositID string) ([]domain.In
 		return s.inventory.ListByDeposits([]string{depositID})
 	}
 
-	deposits, err := s.deposits.List(user)
+	deposits, err := s.deposits.ListForStock(user, classID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,10 +74,11 @@ func (s *InventoryService) List(user domain.User, depositID string) ([]domain.In
 	return s.inventory.ListByDeposits(ids)
 }
 
-// Create cadastra um novo item de inventário em um depósito (somente
-// gestão — aplicado pelo handler via middleware.RequireRole).
+// Create cadastra um novo item de inventário em um depósito. Disponível
+// para qualquer usuário com acesso ao estoque desse depósito (professor
+// na turma dele, gestão no depósito administrativo).
 func (s *InventoryService) Create(user domain.User, depositID string, input ItemInput) (domain.InventoryItem, error) {
-	ok, err := s.deposits.CanAccess(user, depositID)
+	ok, err := s.deposits.CanAccess(user, depositID, "")
 	if err != nil {
 		return domain.InventoryItem{}, err
 	}
@@ -108,7 +119,7 @@ func (s *InventoryService) Update(user domain.User, itemID string, input ItemInp
 	if err != nil {
 		return domain.InventoryItem{}, err
 	}
-	ok, err := s.deposits.CanAccess(user, item.DepositID)
+	ok, err := s.deposits.CanAccess(user, item.DepositID, "")
 	if err != nil {
 		return domain.InventoryItem{}, err
 	}
@@ -136,7 +147,7 @@ func (s *InventoryService) Deactivate(user domain.User, itemID string) error {
 	if err != nil {
 		return err
 	}
-	ok, err := s.deposits.CanAccess(user, item.DepositID)
+	ok, err := s.deposits.CanAccess(user, item.DepositID, "")
 	if err != nil {
 		return err
 	}
@@ -146,9 +157,8 @@ func (s *InventoryService) Deactivate(user domain.User, itemID string) error {
 	return s.inventory.Deactivate(itemID)
 }
 
-// MoveStock registra uma entrada ou saída de estoque. Disponível tanto
-// para professor quanto gestão, desde que o depósito do item seja
-// acessível ao usuário — é a operação central do perfil professor.
+// MoveStock registra uma entrada ou saída de estoque. Disponível para
+// qualquer usuário com acesso ao estoque do depósito do item.
 // Fluxo no sistema: chamado por POST /inventory/move. Gera sempre um
 // StockMovement (auditoria) e atualiza a quantidade do item na mesma
 // transação (ver InventoryRepository.Move).
@@ -165,7 +175,7 @@ func (s *InventoryService) MoveStock(user domain.User, itemID string, movementTy
 		return domain.InventoryItem{}, domain.StockMovement{}, err
 	}
 
-	ok, err := s.deposits.CanAccess(user, item.DepositID)
+	ok, err := s.deposits.CanAccess(user, item.DepositID, "")
 	if err != nil {
 		return domain.InventoryItem{}, domain.StockMovement{}, err
 	}
@@ -177,11 +187,11 @@ func (s *InventoryService) MoveStock(user domain.User, itemID string, movementTy
 }
 
 // ListMovements retorna o histórico de movimentações visível ao usuário,
-// opcionalmente restrito a um único depósito.
-func (s *InventoryService) ListMovements(user domain.User, depositID string, limit int) ([]domain.StockMovement, error) {
+// opcionalmente restrito a um único depósito ou à turma "ativa" (classID).
+func (s *InventoryService) ListMovements(user domain.User, depositID, classID string, limit int) ([]domain.StockMovement, error) {
 	var ids []string
 	if depositID != "" {
-		ok, err := s.deposits.CanAccess(user, depositID)
+		ok, err := s.deposits.CanAccess(user, depositID, classID)
 		if err != nil {
 			return nil, err
 		}
@@ -190,7 +200,7 @@ func (s *InventoryService) ListMovements(user domain.User, depositID string, lim
 		}
 		ids = []string{depositID}
 	} else {
-		deposits, err := s.deposits.List(user)
+		deposits, err := s.deposits.ListForStock(user, classID)
 		if err != nil {
 			return nil, err
 		}

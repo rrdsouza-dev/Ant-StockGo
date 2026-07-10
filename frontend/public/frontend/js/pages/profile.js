@@ -22,6 +22,14 @@ export function ProfilePage(root, ctx) {
     ]);
     const side = el("div", { class: "card profile-side" }, [avatar, nameDisplay, emailDisplay, roleChip, linksList]);
 
+    const supportCodeCard = user.role === "professor"
+      ? el("div", { class: "card card-pad", style: "margin-top:16px" }, [
+          el("h3", { text: "Código de suporte", style: "margin-bottom:6px" }),
+          el("p", { class: "muted", style: "font-size:0.82em;margin-bottom:10px", text: "Use este código ao abrir um chamado em Suporte." }),
+          el("div", { class: "support-code-display", text: user.supportCode || "—" }),
+        ])
+      : el("span");
+
     const nameInput = el("input", { class: "input", value: user.name });
     const emailInput = el("input", { class: "input", type: "email", value: user.email });
     const roleInput = el("input", { class: "input", value: ROLE_LABEL[user.role] || user.role, disabled: true });
@@ -51,7 +59,7 @@ export function ProfilePage(root, ctx) {
       notify("A edição de nome/e-mail ainda não é suportada pelo backend — nenhum endpoint de atualização de perfil foi especificado.", "info");
     }));
 
-    content.append(head, el("div", { class: "profile-grid" }, [side, form]));
+    content.append(head, el("div", { class: "profile-grid" }, [el("div", {}, [side, supportCodeCard]), form]));
     renderIcons(content);
 
     function renderLinks(freshUser) {
@@ -75,6 +83,10 @@ export function ProfilePage(root, ctx) {
       roleChip.textContent = ROLE_LABEL[freshUser.role] || freshUser.role;
       avatar.textContent = getInitials(freshUser.name);
       renderLinks(freshUser);
+      if (freshUser.role === "professor") {
+        const codeEl = supportCodeCard.querySelector?.(".support-code-display");
+        if (codeEl) codeEl.textContent = freshUser.supportCode || "—";
+      }
       session.signIn(freshUser, session.token);
     }).catch(() => {
       // Mantém os dados da sessão local se a chamada falhar.
