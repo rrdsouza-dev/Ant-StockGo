@@ -46,7 +46,7 @@ Endpoints consumidos (ver `js/services/api.js`):
 | `/support` | Suporte (professor abre chamado; gestão visualiza/exporta/limpa) | Todos |
 | `/choose-class` | "Qual turma deseja acessar?" — escolha/troca de turma ativa | Professor com mais de uma turma |
 | `/exports` | Exportação de dados (TXT/Excel) | Todos |
-| `/settings`, `/profile` | Preferências e perfil (inclui código de suporte) | Todos |
+| `/profile` | Perfil (inclui código de suporte) | Todos |
 
 ### Modelo de acesso a estoque
 

@@ -99,7 +99,7 @@ Ver `routes/routes.go` para a lista completa. Resumo:
 | POST   | `/api/v1/inventory/move` | Autenticado (escopo por depósito) |
 | GET    | `/api/v1/inventory/movements` (aceita `?class_id=`) | Autenticado |
 | GET/POST/PATCH/DELETE | `/api/v1/classes[/:id]` | Leitura: autenticado · Escrita: gestão |
-| GET/POST | `/api/v1/categories` | Leitura: autenticado · Escrita: gestão |
+| GET/POST | `/api/v1/categories` | Autenticado (gestão e professor) |
 | POST   | `/api/v1/support/tickets` | Professor |
 | GET    | `/api/v1/support/tickets` | Gestão |
 | DELETE | `/api/v1/support/tickets` | Gestão (exige `admin_code` no corpo, validado contra `SUPPORT_ADMIN_CODE`) |

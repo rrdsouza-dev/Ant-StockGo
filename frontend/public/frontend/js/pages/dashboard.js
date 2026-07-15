@@ -69,7 +69,7 @@ export function DashboardPage(root, ctx) {
       try {
         const deposits = await API.deposits({ scope: "stock", classId: session.classId });
         if (!deposits.length) {
-          notify("Nenhum depósito de estoque disponível para este usuário.", "warning");
+          notify("Nenhum depósito de estoque disponível para este usuário.", "warning", { record: false });
           updateStats([], [], deposits);
           renderMovementsTable([]);
           return;

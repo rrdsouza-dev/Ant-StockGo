@@ -6,7 +6,6 @@
  */
 import { el, renderIcons } from "../utils/helpers.js";
 import { API } from "../services/api.js";
-import { session } from "../services/store.js";
 import { notify } from "./notifications.js";
 import { applyDateMask, isValidBRDate, randomFunnyDateError } from "../utils/validators.js";
 
@@ -73,23 +72,21 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
   };
   f.expiry.addEventListener("input", () => { f.expiry.value = applyDateMask(f.expiry.value); expiryErr.textContent = ""; });
 
-  // ── Categoria + botão "+" (criação de categoria continua exclusiva da
-  // gestão no backend — o botão só aparece para quem pode de fato usá-lo) ──
+  // ── Categoria + botão "+" ──────────────────────────────────
+  // Criação de categoria disponível para qualquer usuário autenticado
+  // (gestão e professor) — mesmo endpoint, mesmo modal, sem duplicar
+  // lógica (ver routes.go: POST /categories não é mais gestaoOnly).
   const categorySelect = el("select", { class: "select" }, [
     el("option", { value: "", text: "Nenhuma" }),
     ...categories.map((c) => el("option", { value: c.id, text: c.name, selected: item?.category_id === c.id })),
   ]);
   if (item?.category_id) categorySelect.value = item.category_id;
-  const categoryRowChildren = [categorySelect];
-  if (session.user?.role === "gestao") {
-    const addCategoryBtn = el("button", { type: "button", class: "icon-btn", title: "Nova categoria" }, [el("i", { "data-lucide": "plus" })]);
-    addCategoryBtn.addEventListener("click", () => openCategoryModal((created) => {
-      categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
-      categorySelect.value = created.id;
-    }));
-    categoryRowChildren.push(addCategoryBtn);
-  }
-  const categoryRow = el("div", { class: "field-inline-add" }, categoryRowChildren);
+  const addCategoryBtn = el("button", { type: "button", class: "icon-btn", title: "Nova categoria" }, [el("i", { "data-lucide": "plus" })]);
+  addCategoryBtn.addEventListener("click", () => openCategoryModal((created) => {
+    categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
+    categorySelect.value = created.id;
+  }));
+  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn]);
 
   // ── Localização genérica: corredor / torre / prateleira / posição ──
   const aisleSelect = numberSelect(10, loc.aisle);

@@ -903,55 +903,6 @@ table.data tbody tr:last-child td {
     color: #1d4ed8;
 }
 
-/* ── Settings switch ──────────────────────────────────────── */
-.setting-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 0;
-    border-bottom: 1px solid var(--border);
-}
-.setting-row:last-child {
-    border-bottom: none;
-}
-.setting-row h4 {
-    margin: 0 0 2px;
-    font-size: 0.9rem;
-}
-.setting-row p {
-    margin: 0;
-    font-size: 0.8rem;
-    color: var(--fg-3);
-}
-.switch {
-    width: 42px;
-    height: 24px;
-    border-radius: 12px;
-    background: var(--border);
-    cursor: pointer;
-    transition: background 0.2s;
-    position: relative;
-    flex-shrink: 0;
-}
-.switch::after {
-    content: "";
-    position: absolute;
-    top: 3px;
-    left: 3px;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: #fff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-    transition: transform 0.2s;
-}
-.switch.on {
-    background: var(--green-600, #16a34a);
-}
-.switch.on::after {
-    transform: translateX(18px);
-}
-
 /* ── Profile page ────────────────────────────────────────── */
 .profile-grid {
     display: grid;
@@ -1110,5 +1061,83 @@ table.data tbody tr:last-child td {
     .scan-info-grid,
     .form-grid-2 {
         grid-template-columns: 1fr;
+    }
+}
+
+/* ── Sino de notificações (navbar) ──────────────────────────────── */
+.notif-bell-wrap {
+    position: relative;
+    display: inline-flex;
+}
+.notif-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 320px;
+    max-height: 380px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    animation: scaleIn var(--dur) var(--ease);
+}
+.notif-dropdown.open {
+    display: flex;
+}
+.notif-dropdown-head {
+    padding: 14px 18px;
+    font-weight: 700;
+    font-size: 0.86rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+}
+.notif-dropdown-list {
+    overflow-y: auto;
+}
+.notif-dropdown-empty {
+    padding: 26px 18px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.84rem;
+}
+.notif-dropdown-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 12px 18px;
+    border-bottom: 1px solid var(--border);
+}
+.notif-dropdown-item:last-child {
+    border-bottom: none;
+}
+.notif-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+}
+.notif-dot-success { background: var(--green-700); }
+.notif-dot-warning { background: #a35a00; }
+.notif-dot-error   { background: #b91c1c; }
+.notif-dot-info    { background: #1d4ed8; }
+.notif-dropdown-msg {
+    font-size: 0.84rem;
+    line-height: 1.4;
+}
+.notif-dropdown-time {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+@media (max-width: 480px) {
+    .notif-dropdown {
+        width: 90vw;
+        right: -12px;
     }
 }

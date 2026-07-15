@@ -8,10 +8,9 @@ import (
 	"wms-backend/internal/services"
 )
 
-// CategoryHandler expõe /categories. Leitura para qualquer usuário
-// autenticado (necessário para exibir a categoria dos itens); criação
-// restrita à gestão pelo middleware de rota, já que é dado de catálogo
-// administrativo, na mesma linha de depósitos e turmas.
+// CategoryHandler expõe /categories. Leitura e criação disponíveis para
+// qualquer usuário autenticado (gestão e professor cadastram itens de
+// estoque e ambos podem precisar de uma categoria nova na hora).
 type CategoryHandler struct {
 	categories *services.CategoryService
 }
@@ -34,8 +33,9 @@ type categoryRequest struct {
 	Name string `json:"name"`
 }
 
-// Create — POST /categories (somente gestão)
-// Usado pelo botão "+" ao lado do campo Categoria no formulário de item.
+// Create — POST /categories (qualquer usuário autenticado)
+// Usado pelo botão "+" ao lado do campo Categoria no formulário de item,
+// tanto na tela de Estoque da gestão quanto na do professor.
 func (h *CategoryHandler) Create(c *gin.Context) {
 	var req categoryRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

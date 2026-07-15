@@ -193,25 +193,22 @@
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.15);
 }
 
-/* ── Selo da escola (Alfredo Inácio Trindade) ───────────────────────────
-   Regra nova e isolada — nenhuma regra existente acima foi alterada.
-   Fica fixo no canto superior esquerdo da tela, acima/sobre a logo ANT,
-   como um selo, sem interferir no layout do formulário de login. */
-.school-badge {
+/* ── Logo da escola ──────────────────────────────────────────────────
+   Apenas a imagem, sem card/moldura/background/borda. Fica no canto
+   superior esquerdo, ~120px do topo, levemente acima da logo ANT. */
+.school-logo {
     position: fixed;
-    top: 18px;
-    left: 18px;
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: #fff;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    top: 10px;
+    left: 20px;
+    width: 110px;
+    height: auto;
     z-index: 50;
 }
-.school-badge img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: top center;
+
+@media (max-width: 640px) {
+    .school-logo {
+        top: 90px;
+        left: 16px;
+        width: 48px;
+    }
 }

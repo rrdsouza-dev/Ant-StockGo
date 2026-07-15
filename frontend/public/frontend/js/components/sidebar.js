@@ -13,7 +13,6 @@ const NAV = [
   { path: "/deposits",    label: "Depósitos",            icon: "warehouse" },
   { path: "/reports",     label: "Relatórios",           icon: "clipboard-list" },
   { path: "/users",       label: "Usuários",             icon: "users", gestaoOnly: true },
-  { path: "/settings",    label: "Configurações",        icon: "settings" },
 ];
 
 const BOTTOM = [

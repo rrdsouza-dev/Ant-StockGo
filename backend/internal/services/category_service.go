@@ -12,8 +12,9 @@ var ErrCategoryInUse = errors.New("já existe uma categoria com este nome")
 
 // CategoryService concentra as regras de negócio de categorias de item
 // de estoque. É uma entidade simples de propósito: existir para o
-// formulário de item poder classificar itens e permitir que a gestão
-// cadastre novas categorias sem precisar de deploy.
+// formulário de item poder classificar itens e permitir que qualquer
+// usuário autenticado (gestão ou professor) cadastre novas categorias
+// sem precisar de deploy.
 type CategoryService struct {
 	categories *repositories.CategoryRepository
 }

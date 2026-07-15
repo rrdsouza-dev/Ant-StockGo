@@ -62,7 +62,7 @@ export function InventoryPage(root, ctx) {
       ]),
       el("div", { class: "exports" }, [
         el("button", { class: "btn btn-soft", onclick: guardedClick(() => {
-          if (!depositId) { notify("Selecione um depósito.", "warning"); return; }
+          if (!depositId) { notify("Selecione um depósito.", "warning", { record: false }); return; }
           openInventoryItemModal({ depositId, onSave: load });
         }) }, [el("i", { "data-lucide": "plus" }), "Adicionar item"]),
         el("button", { class: "btn btn-primary", onclick: guardedClick(() => {

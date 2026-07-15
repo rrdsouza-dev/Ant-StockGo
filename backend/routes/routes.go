@@ -89,9 +89,13 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		classes.DELETE("/:id", gestaoOnly, deps.Classes.Delete)
 
 		// ── Categorias (item de estoque) ─────────────────────────
+		// Criação disponível para qualquer usuário autenticado: tanto
+		// gestão quanto professor cadastram itens de estoque e ambos
+		// podem precisar de uma categoria nova na hora — mesmo
+		// handler/service/repository, sem duplicar nada.
 		categories := api.Group("/categories", authRequired)
 		categories.GET("", deps.Categories.List)
-		categories.POST("", gestaoOnly, deps.Categories.Create)
+		categories.POST("", deps.Categories.Create)
 
 		// ── Suporte ──────────────────────────────────────────────
 		// Abrir chamado é exclusivo do professor; visualizar, exportar

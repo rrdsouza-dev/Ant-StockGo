@@ -141,10 +141,12 @@ export function LoginPage(root) {
   ]);
 
   const wrap = el("div", { class: "auth-wrap anim-fade" }, [left, right]);
-  const schoolBadge = el("div", { class: "school-badge" }, [
-    el("img", { src: "assets/images/logoAlfredo.png", alt: "Escola Estadual Alfredo Inácio Trindade" }),
-  ]);
-  root.appendChild(schoolBadge);
+  const schoolLogo = el("img", {
+    class: "school-logo",
+    src: "assets/images/LogoEscolar.png",
+    alt: "Logo da escola",
+  });
+  root.appendChild(schoolLogo);
   root.appendChild(wrap);
   renderIcons(root);
 }
