@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"time"
 
 	"wms-backend/internal/domain"
 	"wms-backend/internal/repositories"
@@ -187,8 +188,10 @@ func (s *InventoryService) MoveStock(user domain.User, itemID string, movementTy
 }
 
 // ListMovements retorna o histórico de movimentações visível ao usuário,
-// opcionalmente restrito a um único depósito ou à turma "ativa" (classID).
-func (s *InventoryService) ListMovements(user domain.User, depositID, classID string, limit int) ([]domain.StockMovement, error) {
+// opcionalmente restrito a um único depósito, à turma "ativa" (classID)
+// e a um intervalo de datas (from/to, ambos opcionais). O histórico em
+// si nunca é apagado — o intervalo só restringe a consulta.
+func (s *InventoryService) ListMovements(user domain.User, depositID, classID string, from, to *time.Time, limit int) ([]domain.StockMovement, error) {
 	var ids []string
 	if depositID != "" {
 		ok, err := s.deposits.CanAccess(user, depositID, classID)
@@ -208,5 +211,5 @@ func (s *InventoryService) ListMovements(user domain.User, depositID, classID st
 			ids = append(ids, d.ID)
 		}
 	}
-	return s.inventory.ListMovements(ids, limit)
+	return s.inventory.ListMovements(ids, from, to, limit)
 }

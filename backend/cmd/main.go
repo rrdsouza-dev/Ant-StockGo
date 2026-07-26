@@ -39,6 +39,7 @@ func main() {
 	classRepo := repositories.NewClassRepository(db)
 	categoryRepo := repositories.NewCategoryRepository(db)
 	supportRepo := repositories.NewSupportTicketRepository(db)
+	preProductRepo := repositories.NewPreProductRepository(db)
 
 	// Services (regras de negócio)
 	classService := services.NewClassService(classRepo, depositRepo)
@@ -48,18 +49,20 @@ func main() {
 	userService := services.NewUserService(userRepo, classService, depositService)
 	categoryService := services.NewCategoryService(categoryRepo)
 	supportService := services.NewSupportService(supportRepo, cfg.SupportAdminCode)
+	preProductService := services.NewPreProductService(preProductRepo)
 
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
-		Auth:       handlers.NewAuthHandler(authService, userService),
-		Users:      handlers.NewUserHandler(userService),
-		Deposits:   handlers.NewDepositHandler(depositService),
-		Inventory:  handlers.NewInventoryHandler(inventoryService),
-		Classes:    handlers.NewClassHandler(classService),
-		Categories: handlers.NewCategoryHandler(categoryService),
-		Support:    handlers.NewSupportHandler(supportService),
-		JWTManager: jwtManager,
-		UserRepo:   userRepo,
+		Auth:        handlers.NewAuthHandler(authService, userService),
+		Users:       handlers.NewUserHandler(userService),
+		Deposits:    handlers.NewDepositHandler(depositService),
+		Inventory:   handlers.NewInventoryHandler(inventoryService),
+		Classes:     handlers.NewClassHandler(classService),
+		Categories:  handlers.NewCategoryHandler(categoryService),
+		Support:     handlers.NewSupportHandler(supportService),
+		PreProducts: handlers.NewPreProductHandler(preProductService),
+		JWTManager:  jwtManager,
+		UserRepo:    userRepo,
 	}
 
 	router := gin.Default()

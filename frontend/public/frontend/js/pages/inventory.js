@@ -11,7 +11,7 @@ import { notify } from "../components/notifications.js";
 import { guardedClick, sanitize } from "../utils/security.js";
 import { exportExcel } from "../utils/exportExcel.js";
 import { exportTxt } from "../utils/exportTxt.js";
-import { openInventoryItemModal, openMoveModal } from "../components/inventoryModal.js";
+import { openInventoryItemModal, openMoveModal, openPreProductModal } from "../components/inventoryModal.js";
 import { openModal } from "../components/modal.js";
 
 /** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
@@ -65,6 +65,7 @@ export function InventoryPage(root, ctx) {
           if (!depositId) { notify("Selecione um depósito.", "warning", { record: false }); return; }
           openInventoryItemModal({ depositId, onSave: load });
         }) }, [el("i", { "data-lucide": "plus" }), "Adicionar item"]),
+        el("button", { class: "btn btn-soft", onclick: guardedClick(() => openPreProductModal({})) }, [el("i", { "data-lucide": "package-plus" }), "Pré-Produto"]),
         el("button", { class: "btn btn-primary", onclick: guardedClick(() => {
           exportTxt(exportRows(), "estoque.txt");
           notify("Exportado TXT.", "success");

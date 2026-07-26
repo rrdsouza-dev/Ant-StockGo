@@ -297,28 +297,311 @@ export function openMoveModal({ item, type = "in", onSave }) {
 }
 
 /**
- * openScanModal — atalho do leitor de código de barras: procura o item
- * pelo SKU lido e, se encontrado, abre direto o fluxo de movimentação.
- * Se não encontrado, apenas informa — não cria nada automaticamente.
+ * openScanModal — atalho do leitor de código de barras. Ordem de
+ * reconhecimento (ver item 6 da especificação):
+ *   1. Já existe um item de estoque com esse SKU → fluxo normal de
+ *      movimentação (comportamento original, inalterado).
+ *   2. Não existe item, mas o código já está associado a um Pré-Produto
+ *      → abre direto a entrada rápida (quantidade/validade/lote), sem
+ *      pedir para escolher o produto de novo — reconhecimento automático.
+ *   3. Código totalmente desconhecido → oferece associar a um
+ *      Pré-Produto existente antes de prosseguir.
  */
-export function openScanModal({ code, items, onSave }) {
+export async function openScanModal({ code, items, depositId, onSave }) {
   const found = items.find((i) => (i.sku || "").toLowerCase() === code.toLowerCase());
   if (found) {
     openMoveModal({ item: found, onSave });
     return;
   }
 
+  try {
+    const preProduct = await API.preProductByBarcode(code);
+    openEntryFromPreProductModal({ depositId, preProduct, presetBarcode: code, onSave });
+    return;
+  } catch {
+    // Nenhum Pré-Produto associado a este código ainda — segue para associação manual.
+  }
+
+  openAssociateBarcodeModal({ code, depositId, onSave });
+}
+
+/**
+ * openAssociateBarcodeModal — quando um código escaneado não corresponde
+ * a nenhum item de estoque nem a nenhum Pré-Produto, permite escolher (ou
+ * criar na hora, com o mesmo "+") um Pré-Produto para associar a esse
+ * código. Nas próximas leituras, esse mesmo código já será reconhecido
+ * automaticamente (ver openScanModal, passo 2).
+ */
+function openAssociateBarcodeModal({ code, depositId, onSave }) {
+  const select = el("select", { class: "select" }, [el("option", { value: "", text: "Carregando…" })]);
+  const addBtn = el("button", { type: "button", class: "icon-btn", title: "Novo Pré-Produto" }, [el("i", { "data-lucide": "plus" })]);
+  addBtn.addEventListener("click", () => openPreProductModal({
+    onSave: (created) => {
+      select.appendChild(el("option", { value: created.id, text: created.name }));
+      select.value = created.id;
+    },
+  }));
+
+  const errEl = el("div", { class: "error-text" });
+  const confirmBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "link" }), "Associar e continuar"]);
+  const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+
   const card = el("div", { class: "modal" }, [
     el("div", { class: "modal-header" }, [el("h3", { text: "Código não encontrado" })]),
     el("div", { class: "product-modal-body" }, [
-      el("p", { text: `Nenhum item de estoque está cadastrado com o código "${code}".` }),
+      el("p", { style: "margin-bottom:14px", text: `O código "${code}" ainda não está associado a nenhum item ou Pré-Produto. Associe-o a um Pré-Produto do catálogo para continuar — nas próximas leituras ele será reconhecido automaticamente.` }),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Pré-Produto" }), el("div", { class: "field-inline-add" }, [select, addBtn])]),
+      errEl,
     ]),
-    el("div", { class: "modal-actions" }, [
-      el("button", { class: "btn btn-primary", text: "Fechar", onclick: () => backdrop.remove() }),
-    ]),
+    el("div", { class: "modal-actions" }, [cancelBtn, confirmBtn]),
   ]);
   const backdrop = el("div", { class: "modal-backdrop" }, [card]);
-  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) backdrop.remove(); });
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  cancelBtn.addEventListener("click", close);
+
+  API.preProducts().then((list) => {
+    select.innerHTML = "";
+    if (!list.length) {
+      select.appendChild(el("option", { value: "", text: "Nenhum Pré-Produto cadastrado ainda" }));
+      return;
+    }
+    select.appendChild(el("option", { value: "", text: "Selecione…" }));
+    list.forEach((p) => select.appendChild(el("option", { value: p.id, text: p.name })));
+  }).catch(() => { select.innerHTML = ""; select.appendChild(el("option", { value: "", text: "Erro ao carregar" })); });
+
+  confirmBtn.addEventListener("click", async () => {
+    if (!select.value) { errEl.textContent = "Escolha um Pré-Produto."; return; }
+    errEl.textContent = "";
+    confirmBtn.disabled = true;
+    try {
+      const associated = await API.associatePreProductBarcode(select.value, code);
+      notify("Código associado ao Pré-Produto!", "success");
+      close();
+      openEntryFromPreProductModal({ depositId, preProduct: associated, presetBarcode: code, onSave });
+    } catch (err) {
+      errEl.textContent = err.message || "Erro ao associar código.";
+    } finally {
+      confirmBtn.disabled = false;
+    }
+  });
+
   document.body.appendChild(backdrop);
   renderIcons(backdrop);
+}
+
+/**
+ * openPreProductModal — cria (ou edita) um Pré-Produto: o "molde"
+ * permanente de um produto (nome, categoria, marca, unidade,
+ * observações), sem nenhum dado de estoque (sem quantidade, validade,
+ * lote ou código de barras — isso pertence exclusivamente ao item de
+ * estoque real, criado depois a partir dele). Disponível para qualquer
+ * usuário autenticado, igual à criação de itens de estoque e categorias.
+ */
+export async function openPreProductModal({ preProduct, onSave } = {}) {
+  const isEdit = !!preProduct;
+
+  let categories = [];
+  try {
+    categories = await API.categories();
+  } catch {
+    // Segue sem categorias pré-carregadas.
+  }
+
+  const f = {
+    name: el("input", { class: "input", value: preProduct?.name || "", placeholder: "Nome *" }),
+    brand: el("input", { class: "input", value: preProduct?.brand || "", placeholder: "Marca (opcional)" }),
+    unit: el("input", { class: "input", value: preProduct?.unit || "", placeholder: "Unidade de medida * (ex.: kg, un, cx)" }),
+    notes: el("textarea", { class: "input", rows: "3", placeholder: "Observações (opcional)", text: preProduct?.notes || "" }),
+  };
+
+  const categorySelect = el("select", { class: "select" }, [
+    el("option", { value: "", text: "Nenhuma" }),
+    ...categories.map((c) => el("option", { value: c.id, text: c.name, selected: preProduct?.category_id === c.id })),
+  ]);
+  if (preProduct?.category_id) categorySelect.value = preProduct.category_id;
+  const addCategoryBtn = el("button", { type: "button", class: "icon-btn", title: "Nova categoria" }, [el("i", { "data-lucide": "plus" })]);
+  addCategoryBtn.addEventListener("click", () => openCategoryModal((created) => {
+    categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
+    categorySelect.value = created.id;
+  }));
+  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn]);
+
+  const errEl = el("div", { class: "error-text" });
+  const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), isEdit ? "Salvar" : "Criar"]);
+  const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+
+  const card = el("div", { class: "modal" }, [
+    el("div", { class: "modal-header" }, [el("h3", { text: isEdit ? "Editar Pré-Produto" : "Novo Pré-Produto" })]),
+    el("div", { class: "product-modal-body" }, [
+      el("p", { class: "muted", style: "font-size:0.82em;margin-bottom:14px", text: "O Pré-Produto é só um catálogo — não representa estoque. Quando o material chegar de fato, use \"Entrada com Pré-Produto\" para informar quantidade, validade e lote." }),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), f.name]),
+      el("div", { class: "form-grid-2" }, [
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Marca" }), f.brand]),
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Unidade de medida *" }), f.unit]),
+      ]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Categoria" }), categoryRow]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Observações" }), f.notes]),
+      errEl,
+    ]),
+    el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
+  ]);
+
+  const backdrop = el("div", { class: "modal-backdrop" }, [card]);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  cancelBtn.addEventListener("click", close);
+
+  saveBtn.addEventListener("click", async () => {
+    const name = f.name.value.trim();
+    const unit = f.unit.value.trim();
+    errEl.textContent = "";
+    if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
+    if (!unit) { errEl.textContent = "Unidade de medida é obrigatória."; return; }
+
+    saveBtn.disabled = true;
+    try {
+      const data = { name, categoryId: categorySelect.value || null, brand: f.brand.value.trim(), unit, notes: f.notes.value.trim() };
+      const saved = isEdit ? await API.updatePreProduct(preProduct.id, data) : await API.createPreProduct(data);
+      notify(isEdit ? "Pré-Produto atualizado!" : "Pré-Produto criado!", "success");
+      close();
+      onSave?.(saved);
+    } catch (err) {
+      errEl.textContent = err.message || "Erro ao salvar Pré-Produto.";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  document.body.appendChild(backdrop);
+  renderIcons(backdrop);
+  setTimeout(() => f.name.focus(), 80);
+}
+
+/**
+ * openEntryFromPreProductModal — "Entrada utilizando Pré-Produto" (item 5
+ * da especificação). Ao chegar fisicamente, o produto já cadastrado como
+ * Pré-Produto é usado para criar o item de estoque real, pedindo apenas
+ * os dados que só existem no momento da entrada: quantidade, validade,
+ * lote e código de barras. O Pré-Produto permanece intacto no catálogo
+ * para futuras entradas — nada aqui o apaga ou modifica.
+ *
+ * Se `preProduct` já vier definido (fluxo do scanner, código já
+ * associado ou recém-associado), o seletor de produto é pulado. Se
+ * `presetBarcode` vier definido, o campo de código de barras já nasce
+ * preenchido com o código lido, sem precisar redigitar.
+ */
+export async function openEntryFromPreProductModal({ depositId, preProduct, presetBarcode, onSave }) {
+  if (!depositId) { notify("Selecione um depósito antes de registrar uma entrada.", "warning", { record: false }); return; }
+
+  let preProducts = [];
+  let selectedProduct = preProduct || null;
+  if (!selectedProduct) {
+    try {
+      preProducts = await API.preProducts();
+    } catch {
+      // segue com a lista vazia; o select mostrará o estado correspondente
+    }
+    if (!preProducts.length) {
+      notify("Nenhum Pré-Produto cadastrado ainda. Cadastre um em \"Pré-Produto\" primeiro.", "warning", { record: false });
+      return;
+    }
+  }
+
+  const productSelect = selectedProduct ? null : el("select", { class: "select" }, [
+    el("option", { value: "", text: "Selecione um Pré-Produto…" }),
+    ...preProducts.map((p) => el("option", { value: p.id, text: p.brand ? `${p.name} — ${p.brand}` : p.name })),
+  ]);
+  const productLabel = selectedProduct ? el("p", { style: "font-weight:600", text: selectedProduct.name }) : null;
+
+  const qtyInput = el("input", { class: "input", type: "number", min: "1", value: "1", placeholder: "Quantidade *" });
+  const expiryInput = el("input", { class: "input", placeholder: "DD/MM/AAAA", inputmode: "numeric", maxlength: "10" });
+  expiryInput.addEventListener("input", () => { expiryInput.value = applyDateMask(expiryInput.value); expiryErr.textContent = ""; });
+  const lotInput = el("input", { class: "input", placeholder: "Número do lote (opcional)" });
+  const barcodeInput = el("input", { class: "input", value: presetBarcode || "", placeholder: "Código de barras (opcional)" });
+
+  const expiryErr = el("div", { class: "error-text" });
+  const errEl = el("div", { class: "error-text" });
+  const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "check" }), "Registrar entrada"]);
+  const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+
+  const body = [
+    el("div", { class: "field" }, [
+      el("label", { class: "field-label", text: "Pré-Produto" }),
+      productSelect || productLabel,
+    ]),
+    el("div", { class: "form-grid-2" }, [
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Quantidade *" }), qtyInput]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Data de validade *" }), expiryInput, expiryErr]),
+    ]),
+    el("div", { class: "form-grid-2" }, [
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote" }), lotInput]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Código de barras" }), barcodeInput]),
+    ]),
+    errEl,
+  ];
+
+  const card = el("div", { class: "modal" }, [
+    el("div", { class: "modal-header" }, [el("h3", { text: "Entrada com Pré-Produto" })]),
+    el("div", { class: "product-modal-body" }, body),
+    el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
+  ]);
+
+  const backdrop = el("div", { class: "modal-backdrop" }, [card]);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  cancelBtn.addEventListener("click", close);
+
+  saveBtn.addEventListener("click", async () => {
+    errEl.textContent = "";
+    expiryErr.textContent = "";
+
+    if (productSelect) {
+      const chosen = preProducts.find((p) => p.id === productSelect.value);
+      if (!chosen) { errEl.textContent = "Escolha um Pré-Produto."; return; }
+      selectedProduct = chosen;
+    }
+
+    const quantity = Number(qtyInput.value);
+    if (!quantity || quantity <= 0) { errEl.textContent = "Informe uma quantidade válida."; return; }
+
+    const expiryValue = expiryInput.value.trim();
+    if (!expiryValue || !isValidBRDate(expiryValue)) {
+      expiryErr.textContent = randomFunnyDateError();
+      return;
+    }
+
+    saveBtn.disabled = true;
+    try {
+      const notesParts = [];
+      if (selectedProduct.unit) notesParts.push(`Unidade: ${selectedProduct.unit}`);
+      if (selectedProduct.brand) notesParts.push(`Marca: ${selectedProduct.brand}`);
+      if (selectedProduct.notes) notesParts.push(selectedProduct.notes);
+
+      const createdItem = await API.createInventoryItem({
+        depositId,
+        name: selectedProduct.name,
+        sku: barcodeInput.value.trim(),
+        minQuantity: 0,
+        expiryDate: expiryValue,
+        lotNumber: lotInput.value.trim(),
+        categoryId: selectedProduct.category_id || null,
+        notes: notesParts.join(" · "),
+        location: {},
+      });
+      await API.moveStock({ inventoryItemId: createdItem.id, type: "in", quantity, note: "Entrada via Pré-Produto" });
+
+      notify(`Entrada registrada para "${selectedProduct.name}"!`, "success");
+      close();
+      onSave?.();
+    } catch (err) {
+      errEl.textContent = err.message || "Erro ao registrar entrada.";
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  document.body.appendChild(backdrop);
+  renderIcons(backdrop);
+  setTimeout(() => qtyInput.focus(), 80);
 }

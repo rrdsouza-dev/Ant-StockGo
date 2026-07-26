@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"wms-backend/internal/domain"
@@ -145,18 +146,44 @@ func (h *InventoryHandler) Move(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{"item": item, "movement": movement})
 }
 
-// Movements — GET /inventory/movements?deposit_id=&class_id=&limit=
+// Movements — GET /inventory/movements?deposit_id=&class_id=&from=&to=&limit=
+// `from`/`to` são opcionais, no formato AAAA-MM-DD (o mesmo produzido por
+// <input type="date"> e por Date.toISOString().slice(0,10) no frontend).
 func (h *InventoryHandler) Movements(c *gin.Context) {
 	user, _ := middleware.CurrentUser(c)
 	depositID := c.Query("deposit_id")
 	classID := c.Query("class_id")
 
-	movements, err := h.inventory.ListMovements(user, depositID, classID, 200)
+	from, err := parseOptionalDate(c.Query("from"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "data inicial inválida, use o formato AAAA-MM-DD"})
+		return
+	}
+	to, err := parseOptionalDate(c.Query("to"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "data final inválida, use o formato AAAA-MM-DD"})
+		return
+	}
+
+	movements, err := h.inventory.ListMovements(user, depositID, classID, from, to, 200)
 	if err != nil {
 		respondServiceError(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, movements)
+}
+
+// parseOptionalDate converte uma string AAAA-MM-DD em *time.Time, ou
+// retorna nil sem erro quando a string está vazia (parâmetro não informado).
+func parseOptionalDate(value string) (*time.Time, error) {
+	if value == "" {
+		return nil, nil
+	}
+	t, err := time.Parse("2006-01-02", value)
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
 }
 
 // respondServiceError traduz erros de negócio conhecidos em códigos HTTP

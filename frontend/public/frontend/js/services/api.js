@@ -148,6 +148,35 @@ export const API = {
     return request("/categories", { method: "POST", body: { name } });
   },
 
+  // ── Pré-Produtos (catálogo permanente) ──────────────────────
+  async preProducts() {
+    const list = await request("/pre-products");
+    return list || [];
+  },
+  async createPreProduct({ name, categoryId, brand, unit, notes }) {
+    return request("/pre-products", {
+      method: "POST",
+      body: { name, category_id: categoryId || null, brand, unit, notes },
+    });
+  },
+  async updatePreProduct(id, { name, categoryId, brand, unit, notes }) {
+    return request(`/pre-products/${id}`, {
+      method: "PATCH",
+      body: { name, category_id: categoryId || null, brand, unit, notes },
+    });
+  },
+  async deletePreProduct(id) {
+    return request(`/pre-products/${id}`, { method: "DELETE" });
+  },
+  /** Busca o Pré-Produto associado a um código de barras (lança erro se não houver nenhum). */
+  async preProductByBarcode(code) {
+    return request(`/pre-products/by-barcode/${encodeURIComponent(code)}`);
+  },
+  /** Associa um código de barras a um Pré-Produto já existente. */
+  async associatePreProductBarcode(id, barcode) {
+    return request(`/pre-products/${id}/barcode`, { method: "POST", body: { barcode } });
+  },
+
   /** Registra uma entrada ("in") ou saída ("out") de estoque. */
   async moveStock({ inventoryItemId, type, quantity, note }) {
     return request("/inventory/move", {
@@ -155,8 +184,8 @@ export const API = {
       body: { inventory_item_id: inventoryItemId, type, quantity, note },
     });
   },
-  async movements({ depositId, classId } = {}) {
-    const list = await request("/inventory/movements", { params: { deposit_id: depositId, class_id: classId } });
+  async movements({ depositId, classId, from, to } = {}) {
+    const list = await request("/inventory/movements", { params: { deposit_id: depositId, class_id: classId, from, to } });
     return list || [];
   },
 

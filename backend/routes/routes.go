@@ -13,13 +13,14 @@ import (
 // Mantém Setup enxuto e fácil de ler — cada linha abaixo mapeia
 // diretamente para um item da lista de ENDPOINTS da especificação.
 type Dependencies struct {
-	Auth       *handlers.AuthHandler
-	Users      *handlers.UserHandler
-	Deposits   *handlers.DepositHandler
-	Inventory  *handlers.InventoryHandler
-	Classes    *handlers.ClassHandler
-	Categories *handlers.CategoryHandler
-	Support    *handlers.SupportHandler
+	Auth        *handlers.AuthHandler
+	Users       *handlers.UserHandler
+	Deposits    *handlers.DepositHandler
+	Inventory   *handlers.InventoryHandler
+	Classes     *handlers.ClassHandler
+	Categories  *handlers.CategoryHandler
+	Support     *handlers.SupportHandler
+	PreProducts *handlers.PreProductHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -96,6 +97,18 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		categories := api.Group("/categories", authRequired)
 		categories.GET("", deps.Categories.List)
 		categories.POST("", deps.Categories.Create)
+
+		// ── Pré-Produtos (catálogo permanente) ───────────────────
+		// Mesmo modelo de acesso de /categories: qualquer usuário
+		// autenticado cadastra e usa o catálogo, já que tanto gestão
+		// quanto professor registram entradas de estoque.
+		preProducts := api.Group("/pre-products", authRequired)
+		preProducts.GET("", deps.PreProducts.List)
+		preProducts.POST("", deps.PreProducts.Create)
+		preProducts.PATCH("/:id", deps.PreProducts.Update)
+		preProducts.DELETE("/:id", deps.PreProducts.Delete)
+		preProducts.GET("/by-barcode/:code", deps.PreProducts.FindByBarcode)
+		preProducts.POST("/:id/barcode", deps.PreProducts.AssociateBarcode)
 
 		// ── Suporte ──────────────────────────────────────────────
 		// Abrir chamado é exclusivo do professor; visualizar, exportar

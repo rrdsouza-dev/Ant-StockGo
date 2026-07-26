@@ -158,19 +158,37 @@ func (r *InventoryRepository) Move(item domain.InventoryItem, movementType domai
 
 // ListMovements retorna o histórico de movimentações dos depósitos informados,
 // mais recentes primeiro. Usado pelas páginas de Relatórios e Exportações.
+// `from`/`to` são opcionais (nil = sem limite naquele lado) e filtram pela
+// DATA de `created_at` (não pelo horário), para que "até 20/07" inclua o
+// dia inteiro independente da hora exata de cada movimentação. O histórico
+// em si nunca é apagado — o filtro é só uma restrição de leitura.
 // Cast ::uuid[] explícito — ver nota em DepositRepository.ListByIDs.
-func (r *InventoryRepository) ListMovements(depositIDs []string, limit int) ([]domain.StockMovement, error) {
+func (r *InventoryRepository) ListMovements(depositIDs []string, from, to *time.Time, limit int) ([]domain.StockMovement, error) {
 	if len(depositIDs) == 0 {
 		return []domain.StockMovement{}, nil
 	}
 	if limit <= 0 || limit > 500 {
 		limit = 200
 	}
+
 	query := `
 		SELECT id, inventory_item_id, deposit_id, type, quantity, note, created_by, created_at
-		FROM stock_movements WHERE deposit_id = ANY($1::uuid[])
-		ORDER BY created_at DESC LIMIT $2`
-	rows, err := r.db.Query(query, pq.Array(depositIDs), limit)
+		FROM stock_movements WHERE deposit_id = ANY($1::uuid[])`
+	args := []any{pq.Array(depositIDs)}
+
+	if from != nil {
+		args = append(args, *from)
+		query += fmt.Sprintf(" AND created_at::date >= $%d::date", len(args))
+	}
+	if to != nil {
+		args = append(args, *to)
+		query += fmt.Sprintf(" AND created_at::date <= $%d::date", len(args))
+	}
+
+	args = append(args, limit)
+	query += fmt.Sprintf(" ORDER BY created_at DESC LIMIT $%d", len(args))
+
+	rows, err := r.db.Query(query, args...)
 	if err != nil {
 		return nil, err
 	}

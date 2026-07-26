@@ -1,7 +1,9 @@
 /**
  * Entradas e Saídas — leitor de código de barras + histórico de
  * movimentações. Toda movimentação é registrada via API.moveStock,
- * que no backend grava o StockMovement de auditoria.
+ * que no backend grava o StockMovement de auditoria. O histórico
+ * completo nunca é apagado — o filtro de período abaixo só restringe
+ * a visualização/exportação.
  */
 import { el, renderIcons } from "../utils/helpers.js";
 import { AppShell } from "./_shell.js";
@@ -13,7 +15,8 @@ import { guardedClick } from "../utils/security.js";
 import { exportExcel } from "../utils/exportExcel.js";
 import { exportTxt } from "../utils/exportTxt.js";
 import { BarcodeScanner } from "../components/barcodeScanner.js";
-import { openMoveModal, openScanModal } from "../components/inventoryModal.js";
+import { openMoveModal, openScanModal, openEntryFromPreProductModal } from "../components/inventoryModal.js";
+import { PERIOD_PRESETS, resolvePeriod } from "../utils/period.js";
 
 export function MovementsPage(root, ctx) {
   AppShell(root, ctx.path, (content) => {
@@ -21,6 +24,9 @@ export function MovementsPage(root, ctx) {
     let items = [];
     let deposits = [];
     let depositId = null;
+    let periodPreset = "7d";
+    let customFrom = "";
+    let customTo = "";
 
     const head = el("div", { class: "page-head" }, [
       el("div", {}, [
@@ -37,7 +43,18 @@ export function MovementsPage(root, ctx) {
       ]),
     ]);
 
-    const depositSelect = el("select", { class: "select", style: "max-width:260px;margin-bottom:14px" });
+    // ── Depósito + período ───────────────────────────────────────
+    const depositSelect = el("select", { class: "select", style: "max-width:260px" });
+    const periodSelect = el("select", { class: "select", style: "max-width:200px" },
+      PERIOD_PRESETS.map((p) => el("option", { value: p.value, text: p.label, selected: p.value === periodPreset })),
+    );
+    const fromInput = el("input", { type: "date", class: "input", style: "max-width:160px" });
+    const toInput = el("input", { type: "date", class: "input", style: "max-width:160px" });
+    const customRange = el("div", { class: "filters-row", style: "display:none;margin-top:0" }, [
+      el("span", { class: "muted", text: "de" }), fromInput,
+      el("span", { class: "muted", text: "até" }), toInput,
+    ]);
+    const filtersRow = el("div", { class: "filters-row", style: "margin-bottom:14px" }, [depositSelect, periodSelect]);
 
     // ── Painel do leitor de código de barras ───────────────────
     const scannerSection = el("div", { class: "card card-pad", style: "margin-bottom:18px" }, [
@@ -49,7 +66,7 @@ export function MovementsPage(root, ctx) {
     });
     scannerSection.appendChild(scanner.node);
 
-    // ── Busca manual (sem leitor) ───────────────────────────────
+    // ── Busca manual (sem leitor) + entrada via Pré-Produto ─────
     const manualRow = el("div", { class: "filters-row", style: "margin-bottom:18px" });
     const manualSelect = el("select", { class: "select", style: "max-width:320px" });
     manualRow.append(
@@ -58,28 +75,38 @@ export function MovementsPage(root, ctx) {
         const item = items.find((i) => i.id === manualSelect.value);
         if (item) openMoveModal({ item, onSave: loadMovements });
       }) }, [el("i", { "data-lucide": "arrow-left-right" }), " Movimentar item selecionado"]),
+      el("button", { class: "btn btn-soft", onclick: guardedClick(() => {
+        openEntryFromPreProductModal({ depositId, onSave: loadMovements });
+      }) }, [el("i", { "data-lucide": "package-plus" }), " Entrada com Pré-Produto"]),
     );
 
     const tableContainer = el("div", {}, [
       el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Carregando movimentações…"]),
     ]);
 
-    content.append(head, depositSelect, scannerSection, manualRow, tableContainer);
+    content.append(head, filtersRow, customRange, scannerSection, manualRow, tableContainer);
     renderIcons(content);
 
     function handleScan(code, refreshHistory) {
       refreshHistory?.();
-      openScanModal({ code, items, onSave: loadMovements });
+      openScanModal({ code, items, depositId, onSave: loadMovements });
     }
 
     function itemName(id) {
       return items.find((i) => i.id === id)?.name || id.slice(0, 8) + "…";
     }
 
+    function currentRange() {
+      if (periodPreset === "custom") {
+        return { from: customFrom || undefined, to: customTo || undefined };
+      }
+      return resolvePeriod(periodPreset) || {};
+    }
+
     function renderTable(rows) {
       tableContainer.innerHTML = "";
       if (!rows.length) {
-        tableContainer.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhuma movimentação registrada."]));
+        tableContainer.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center" }, ["Nenhuma movimentação encontrada para o período selecionado."]));
         return;
       }
       const table = DataTable({
@@ -124,8 +151,9 @@ export function MovementsPage(root, ctx) {
         session.setDepositId(depositId);
         renderDepositOptions();
 
+        const { from, to } = currentRange();
         const [movements, inventoryItems] = await Promise.all([
-          API.movements({ depositId, classId: session.classId }),
+          API.movements({ depositId, classId: session.classId, from, to }),
           API.inventory(depositId, session.classId),
         ]);
         items = inventoryItems;
@@ -153,6 +181,14 @@ export function MovementsPage(root, ctx) {
       session.setDepositId(depositId);
       loadMovements();
     });
+
+    periodSelect.addEventListener("change", (e) => {
+      periodPreset = e.target.value;
+      customRange.style.display = periodPreset === "custom" ? "flex" : "none";
+      if (periodPreset !== "custom") loadMovements();
+    });
+    fromInput.addEventListener("change", (e) => { customFrom = e.target.value; if (periodPreset === "custom") loadMovements(); });
+    toInput.addEventListener("change", (e) => { customTo = e.target.value; if (periodPreset === "custom") loadMovements(); });
 
     loadMovements();
   });

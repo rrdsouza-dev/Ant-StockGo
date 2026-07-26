@@ -406,6 +406,12 @@ table.data tbody tr:hover {
 table.data tbody tr:last-child td {
     border-bottom: none;
 }
+table.data th.col-select,
+table.data td.col-select {
+    width: 40px;
+    padding: 14px 0 14px 18px;
+    cursor: default;
+}
 
 .pagination {
     display: flex;

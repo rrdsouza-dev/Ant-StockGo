@@ -24,6 +24,7 @@ Supabase, ou rode via psql:
 psql "$DATABASE_URL" -f database/migrations/001_init.sql
 psql "$DATABASE_URL" -f database/migrations/002_item_details.sql
 psql "$DATABASE_URL" -f database/migrations/003_admin_deposit_and_support.sql
+psql "$DATABASE_URL" -f database/migrations/004_pre_products.sql
 ```
 
 `001_init.sql` cria as tabelas `users`, `pending_users`, `deposits`,
@@ -97,9 +98,12 @@ Ver `routes/routes.go` para a lista completa. Resumo:
 | POST/PATCH/DELETE `/api/v1/deposits[/:id]` | Gestão |
 | GET/POST/PATCH/DELETE | `/api/v1/inventory[/:id]` (aceita `?class_id=` na leitura) | Autenticado, escopo por depósito (ver seção de permissões abaixo) |
 | POST   | `/api/v1/inventory/move` | Autenticado (escopo por depósito) |
-| GET    | `/api/v1/inventory/movements` (aceita `?class_id=`) | Autenticado |
+| GET    | `/api/v1/inventory/movements` (aceita `?class_id=&from=&to=`, formato AAAA-MM-DD) | Autenticado |
 | GET/POST/PATCH/DELETE | `/api/v1/classes[/:id]` | Leitura: autenticado · Escrita: gestão |
 | GET/POST | `/api/v1/categories` | Autenticado (gestão e professor) |
+| GET/POST/PATCH/DELETE | `/api/v1/pre-products[/:id]` | Autenticado (gestão e professor) |
+| GET | `/api/v1/pre-products/by-barcode/:code` | Autenticado |
+| POST | `/api/v1/pre-products/:id/barcode` | Autenticado |
 | POST   | `/api/v1/support/tickets` | Professor |
 | GET    | `/api/v1/support/tickets` | Gestão |
 | DELETE | `/api/v1/support/tickets` | Gestão (exige `admin_code` no corpo, validado contra `SUPPORT_ADMIN_CODE`) |
