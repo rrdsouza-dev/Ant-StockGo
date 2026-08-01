@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -49,4 +50,19 @@ func (h *UserHandler) List(c *gin.Context) {
 		public = append(public, u.ToPublic())
 	}
 	c.JSON(http.StatusOK, public)
+}
+
+// Delete — DELETE /users/:id (somente gestão)
+// Exclui permanentemente uma conta de professor. O service recusa
+// qualquer tentativa de excluir uma conta que não seja de professor.
+func (h *UserHandler) Delete(c *gin.Context) {
+	if err := h.users.DeleteProfessor(c.Param("id")); err != nil {
+		status := http.StatusBadRequest
+		if errors.Is(err, services.ErrCannotDeleteNonProfessor) {
+			status = http.StatusForbidden
+		}
+		c.JSON(status, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Conta de professor excluída."})
 }

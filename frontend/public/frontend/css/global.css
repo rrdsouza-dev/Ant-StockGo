@@ -88,26 +88,11 @@ h4 {
 
 /* Backgrounds */
 .app-bg {
-    background-image:
-        radial-gradient(
-            1200px 700px at -10% -20%,
-            rgba(16, 185, 129, 0.1),
-            transparent 60%
-        ),
-        radial-gradient(
-            900px 600px at 110% 10%,
-            rgba(16, 185, 129, 0.12),
-            transparent 65%
-        ),
-        url("../assets/images/bg.jpg");
-    background-size: cover, cover, 700px;
-    background-position:
-        center,
-        center,
-        top left;
-    background-repeat: no-repeat, no-repeat, repeat;
+    background-image: url("../assets/images/bg.jpg");
+    background-size: 700px;
+    background-position: top left;
+    background-repeat: repeat;
     background-color: white;
-    background-blend-mode: normal, normal, soft-light;
 }
 
 /* Focus */

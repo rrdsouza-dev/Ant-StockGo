@@ -42,9 +42,11 @@ func (r *SupportTicketRepository) List() ([]domain.SupportTicket, error) {
 	var list []domain.SupportTicket
 	for rows.Next() {
 		var t domain.SupportTicket
-		if err := rows.Scan(&t.ID, &t.ProfessorID, &t.Nome, &t.Email, &t.Categoria, &t.Tipo, &t.Descricao, &t.CreatedAt); err != nil {
+		var professorID sql.NullString
+		if err := rows.Scan(&t.ID, &professorID, &t.Nome, &t.Email, &t.Categoria, &t.Tipo, &t.Descricao, &t.CreatedAt); err != nil {
 			return nil, err
 		}
+		t.ProfessorID = professorID.String
 		list = append(list, t)
 	}
 	return list, rows.Err()

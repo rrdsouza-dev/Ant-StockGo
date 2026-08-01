@@ -68,7 +68,7 @@ export function RegisterPage(root) {
   );
 
   const card = el("div", { class: "auth-card" }, [
-    el("div", { class: "brand" }, [el("img", { src: "assets/images/logo-light.jpg", alt: "ANT Stock" })]),
+    el("div", { class: "brand" }, [el("img", { src: "assets/images/NovaLogo.png", alt: "ANT Stock" })]),
     el("h2", { text: "Crie sua conta" }),
     el("p", { class: "subtitle", text: "Seu cadastro será revisado pela gestão antes da ativação." }),
     form,
@@ -96,7 +96,7 @@ export function RegisterPage(root) {
       // Conta criada como PENDENTE — nunca autentica automaticamente.
       card.innerHTML = "";
       card.append(
-        el("div", { class: "brand" }, [el("img", { src: "assets/images/logo-light.jpg", alt: "ANT Stock" })]),
+        el("div", { class: "brand" }, [el("img", { src: "assets/images/NovaLogo.png", alt: "ANT Stock" })]),
         el("div", { class: "icon-pill", style: "margin:0 auto 16px" }, [el("i", { "data-lucide": "clock" })]),
         el("h2", { text: "Cadastro enviado!" }),
         el("p", { class: "subtitle", text: "Sua conta foi enviada para aprovação da gestão. Você poderá entrar assim que ela for ativada." }),

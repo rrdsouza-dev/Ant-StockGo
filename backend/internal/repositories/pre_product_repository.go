@@ -106,14 +106,16 @@ func scanPreProduct(row *sql.Row) (domain.PreProduct, error) {
 	var p domain.PreProduct
 	var categoryID sql.NullString
 	var barcode sql.NullString
+	var createdBy sql.NullString
 	err := row.Scan(&p.ID, &p.Name, &categoryID, &p.Brand, &p.Unit, &p.Notes, &barcode,
-		&p.Active, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt)
+		&p.Active, &createdBy, &p.CreatedAt, &p.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return domain.PreProduct{}, ErrNotFound
 	}
 	if err != nil {
 		return domain.PreProduct{}, err
 	}
+	p.CreatedBy = createdBy.String
 	applyNullablePreProductFields(&p, categoryID, barcode)
 	return p, nil
 }
@@ -123,11 +125,13 @@ func scanPreProductWithCategoryRows(rows *sql.Rows) (domain.PreProduct, error) {
 	var categoryID sql.NullString
 	var barcode sql.NullString
 	var categoryName sql.NullString
+	var createdBy sql.NullString
 	err := rows.Scan(&p.ID, &p.Name, &categoryID, &p.Brand, &p.Unit, &p.Notes, &barcode,
-		&p.Active, &p.CreatedBy, &p.CreatedAt, &p.UpdatedAt, &categoryName)
+		&p.Active, &createdBy, &p.CreatedAt, &p.UpdatedAt, &categoryName)
 	if err != nil {
 		return domain.PreProduct{}, err
 	}
+	p.CreatedBy = createdBy.String
 	applyNullablePreProductFields(&p, categoryID, barcode)
 	if categoryID.Valid && categoryName.Valid {
 		p.Category = &domain.Category{ID: categoryID.String, Name: categoryName.String}

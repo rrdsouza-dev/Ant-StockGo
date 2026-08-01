@@ -21,7 +21,7 @@ type Deposit struct {
 	Description      string    `json:"description,omitempty"`
 	IsAdministrative bool      `json:"is_administrative"`
 	Active           bool      `json:"active"`
-	CreatedBy        string    `json:"created_by"`
+	CreatedBy        string    `json:"created_by"` // vazio se o usuário autor já foi excluído (ver migração 005)
 	CreatedAt        time.Time `json:"created_at"`
 	UpdatedAt        time.Time `json:"updated_at"`
 }

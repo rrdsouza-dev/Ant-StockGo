@@ -24,7 +24,7 @@ export function ChooseClassPage(root) {
   ]);
 
   const card = el("div", { class: "auth-card choose-class-card" }, [
-    el("div", { class: "brand" }, [el("img", { src: "assets/images/logo-light.jpg", alt: "ANT Stock" })]),
+    el("div", { class: "brand" }, [el("img", { src: "assets/images/NovaLogo.png", alt: "ANT Stock" })]),
     el("h2", { text: "Qual turma deseja acessar?" }),
     el("p", { class: "subtitle", text: "Você está vinculado a mais de uma turma. Escolha com qual deseja trabalhar agora — você pode trocar depois pela barra lateral." }),
     list,

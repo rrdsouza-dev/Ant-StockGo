@@ -91,6 +91,10 @@ export const API = {
     const list = await request("/users");
     return (list || []).map(normalizeUser);
   },
+  /** Somente gestão: exclui permanentemente uma conta de professor. */
+  async deleteUser(id) {
+    return request(`/users/${id}`, { method: "DELETE" });
+  },
 
   // ── Depósitos (estoques) ────────────────────────────────────
   // scope="stock" restringe à visão de ESTOQUE (gestão: só o depósito
@@ -146,6 +150,10 @@ export const API = {
   },
   async createCategory(name) {
     return request("/categories", { method: "POST", body: { name } });
+  },
+  /** Somente gestão: exclui uma categoria. Itens que a usavam ficam sem categoria. */
+  async deleteCategory(id) {
+    return request(`/categories/${id}`, { method: "DELETE" });
   },
 
   // ── Pré-Produtos (catálogo permanente) ──────────────────────
@@ -226,6 +234,15 @@ export const API = {
   /** Somente gestão: apaga todo o histórico, mediante código administrativo. */
   async clearSupportHistory(adminCode) {
     return request("/support/tickets", { method: "DELETE", body: { admin_code: adminCode } });
+  },
+
+  // ── Configurações do sistema ─────────────────────────────────
+  async getRetentionSettings() {
+    return request("/settings/retention");
+  },
+  /** Somente gestão: define o período (em dias) de retenção de movimentações. */
+  async updateRetentionSettings(days) {
+    return request("/settings/retention", { method: "PUT", body: { movement_retention_days: days } });
   },
 };
 

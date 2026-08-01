@@ -53,3 +53,12 @@ func (h *CategoryHandler) Create(c *gin.Context) {
 	}
 	c.JSON(http.StatusCreated, category)
 }
+
+// Delete — DELETE /categories/:id (somente gestão)
+func (h *CategoryHandler) Delete(c *gin.Context) {
+	if err := h.categories.Delete(c.Param("id")); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"message": "Categoria excluída."})
+}

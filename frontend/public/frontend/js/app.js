@@ -15,6 +15,7 @@ import { ExportsPage } from "./pages/exports.js";
 import { UsersPage } from "./pages/users.js";
 import { SupportPage } from "./pages/support.js";
 import { ChooseClassPage } from "./pages/choose-class.js";
+import { SettingsPage } from "./pages/settings.js";
 
 // Public
 router.register("/login", LoginPage, { public: true });
@@ -32,6 +33,7 @@ router.register("/profile", ProfilePage);
 router.register("/exports", ExportsPage);
 router.register("/support", SupportPage);
 router.register("/choose-class", ChooseClassPage);
+router.register("/settings", SettingsPage);
 
 router.setGuard((route, path) => {
   const isPublic = !!route?.public;

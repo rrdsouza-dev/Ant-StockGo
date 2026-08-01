@@ -197,9 +197,11 @@ func (r *InventoryRepository) ListMovements(depositIDs []string, from, to *time.
 	var list []domain.StockMovement
 	for rows.Next() {
 		var m domain.StockMovement
-		if err := rows.Scan(&m.ID, &m.InventoryItemID, &m.DepositID, &m.Type, &m.Quantity, &m.Note, &m.CreatedBy, &m.CreatedAt); err != nil {
+		var createdBy sql.NullString
+		if err := rows.Scan(&m.ID, &m.InventoryItemID, &m.DepositID, &m.Type, &m.Quantity, &m.Note, &createdBy, &m.CreatedAt); err != nil {
 			return nil, err
 		}
+		m.CreatedBy = createdBy.String
 		list = append(list, m)
 	}
 	return list, rows.Err()

@@ -140,6 +140,7 @@ export function ReportsPage(root, ctx) {
 
     function updateSelectedUI() {
       const n = selectedRows.length;
+      exportAllBtns.style.display = n > 0 ? "none" : "flex";
       exportSelectedBtns.style.display = n > 0 ? "flex" : "none";
       selectedCount.textContent = `${n} selecionado(s)`;
     }

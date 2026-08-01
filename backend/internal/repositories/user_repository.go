@@ -92,6 +92,17 @@ func (r *UserRepository) ClassIDsForProfessor(userID string) ([]string, error) {
 	return ids, rows.Err()
 }
 
+// Delete remove permanentemente a conta do banco de dados. Registros que
+// essa conta tenha criado (depósitos, movimentações, Pré-Produtos,
+// chamados de suporte) NÃO são apagados — a migração 005 tornou essas
+// referências opcionais (ON DELETE SET NULL), preservando o histórico do
+// sistema mesmo depois que o autor original não existe mais. O vínculo
+// com turmas (class_teachers) é removido em cascata pelo próprio banco.
+func (r *UserRepository) Delete(id string) error {
+	_, err := r.db.Exec(`DELETE FROM users WHERE id = $1`, id)
+	return err
+}
+
 func scanUser(row *sql.Row) (domain.User, error) {
 	var u domain.User
 	var supportCode sql.NullString

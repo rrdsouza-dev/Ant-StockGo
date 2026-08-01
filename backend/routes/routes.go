@@ -21,6 +21,7 @@ type Dependencies struct {
 	Categories  *handlers.CategoryHandler
 	Support     *handlers.SupportHandler
 	PreProducts *handlers.PreProductHandler
+	Settings    *handlers.SystemSettingsHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -59,6 +60,7 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		users := api.Group("/users", authRequired)
 		users.GET("/me", deps.Users.Me)
 		users.GET("", gestaoOnly, deps.Users.List)
+		users.DELETE("/:id", gestaoOnly, deps.Users.Delete)
 
 		// ── Depósitos (estoques) — gestão de ENTIDADE ───────────
 		// Criar/editar/excluir o depósito como registro continua
@@ -97,6 +99,7 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		categories := api.Group("/categories", authRequired)
 		categories.GET("", deps.Categories.List)
 		categories.POST("", deps.Categories.Create)
+		categories.DELETE("/:id", gestaoOnly, deps.Categories.Delete)
 
 		// ── Pré-Produtos (catálogo permanente) ───────────────────
 		// Mesmo modelo de acesso de /categories: qualquer usuário
@@ -118,5 +121,12 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		support.POST("/tickets", professorOnly, deps.Support.Create)
 		support.GET("/tickets", gestaoOnly, deps.Support.List)
 		support.DELETE("/tickets", gestaoOnly, deps.Support.ClearAll)
+
+		// ── Configurações do sistema ──────────────────────────────
+		// Hoje só existe o período de retenção de movimentações.
+		// Leitura para qualquer autenticado; escrita só para gestão.
+		settings := api.Group("/settings", authRequired)
+		settings.GET("/retention", deps.Settings.GetRetention)
+		settings.PUT("/retention", gestaoOnly, deps.Settings.UpdateRetention)
 	}
 }

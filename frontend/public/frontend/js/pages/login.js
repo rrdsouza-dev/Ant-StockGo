@@ -118,7 +118,7 @@ export function LoginPage(root) {
 
   const left = el("div", { class: "auth-left" }, [
     el("div", { class: "brand" }, [
-      el("img", { src: "assets/images/logo-light.jpg", alt: "ANT Stock" }),
+      el("img", { src: "assets/images/NovaLogo.png", alt: "ANT Stock" }),
     ]),
     el("h1", { text: "Bem-vindo de volta!" }),
     el("p", {
@@ -130,20 +130,16 @@ export function LoginPage(root) {
 
   const right = el("div", { class: "auth-right" }, [
     el("img", {
-      src: "assets/images/Banner-green.png",
+      src: "assets/images/BannerNovo.png",
       class: "illu",
       alt: "Ilustração ANT Stock",
-    }),
-    el("div", {
-      class: "tag",
-      html: "Torne seu trabalho mais fácil e organizado com o <b>ANT Stock</b>",
     }),
   ]);
 
   const wrap = el("div", { class: "auth-wrap anim-fade" }, [left, right]);
   const schoolLogo = el("img", {
     class: "school-logo",
-    src: "assets/images/LogoEscolar.png",
+    src: "assets/images/NovaLogoAlfredo.png",
     alt: "Logo da escola",
   });
   root.appendChild(schoolLogo);

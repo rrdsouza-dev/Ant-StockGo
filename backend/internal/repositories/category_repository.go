@@ -55,6 +55,15 @@ func (r *CategoryRepository) NameExists(name string) (bool, error) {
 	return exists, err
 }
 
+// Delete remove permanentemente a categoria. Itens de estoque e
+// Pré-Produtos que a usavam simplesmente ficam sem categoria
+// (category_id vira NULL, ver `ON DELETE SET NULL` nas migrações 002 e
+// 004) — nada mais é apagado.
+func (r *CategoryRepository) Delete(id string) error {
+	_, err := r.db.Exec(`DELETE FROM categories WHERE id = $1`, id)
+	return err
+}
+
 func scanCategory(row *sql.Row) (domain.Category, error) {
 	var c domain.Category
 	err := row.Scan(&c.ID, &c.Name, &c.CreatedAt)

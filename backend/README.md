@@ -25,6 +25,8 @@ psql "$DATABASE_URL" -f database/migrations/001_init.sql
 psql "$DATABASE_URL" -f database/migrations/002_item_details.sql
 psql "$DATABASE_URL" -f database/migrations/003_admin_deposit_and_support.sql
 psql "$DATABASE_URL" -f database/migrations/004_pre_products.sql
+psql "$DATABASE_URL" -f database/migrations/005_allow_user_deletion.sql
+psql "$DATABASE_URL" -f database/migrations/006_system_settings.sql
 ```
 
 `001_init.sql` cria as tabelas `users`, `pending_users`, `deposits`,
@@ -104,6 +106,10 @@ Ver `routes/routes.go` para a lista completa. Resumo:
 | GET/POST/PATCH/DELETE | `/api/v1/pre-products[/:id]` | Autenticado (gestão e professor) |
 | GET | `/api/v1/pre-products/by-barcode/:code` | Autenticado |
 | POST | `/api/v1/pre-products/:id/barcode` | Autenticado |
+| DELETE | `/api/v1/users/:id` | Gestão (só exclui contas de professor) |
+| DELETE | `/api/v1/categories/:id` | Gestão |
+| GET | `/api/v1/settings/retention` | Autenticado |
+| PUT | `/api/v1/settings/retention` | Gestão |
 | POST   | `/api/v1/support/tickets` | Professor |
 | GET    | `/api/v1/support/tickets` | Gestão |
 | DELETE | `/api/v1/support/tickets` | Gestão (exige `admin_code` no corpo, validado contra `SUPPORT_ADMIN_CODE`) |
@@ -132,3 +138,13 @@ outra camada decide isso de forma independente.
 - `SUPPORT_ADMIN_CODE`: código exigido da gestão para limpar o histórico
   de chamados de suporte. Sem valor definido, a limpeza fica sempre
   bloqueada (nunca aceita código vazio como válido).
+
+## Limpeza automática de movimentações
+
+O servidor apaga permanentemente movimentações de estoque mais antigas
+que o período configurado em **Configurações** (padrão: 30 dias, ajustável
+de 7 a 365 pela gestão, via `PUT /settings/retention`). Essa limpeza roda
+em uma goroutine interna, uma vez ao subir o servidor e depois a cada
+hora — não depende de cron externo. Esta é uma mudança de política em
+relação a versões anteriores do sistema, onde o histórico era permanente;
+ver `RELATORIO.md` para o registro completo dessa decisão.

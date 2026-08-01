@@ -25,7 +25,8 @@
     padding: 4px 8px 22px;
 }
 .sidebar .brand img {
-    height: 150px;
+    max-width: 100%;
+    height: auto;
 }
 .sidebar nav {
     display: flex;

@@ -29,7 +29,7 @@ func (t SupportIssueType) IsValid() bool {
 // conta do professor mude de nome ou seja desativada depois.
 type SupportTicket struct {
 	ID          string           `json:"id"`
-	ProfessorID string           `json:"professor_id"`
+	ProfessorID string           `json:"professor_id"` // vazio se o professor autor já foi excluído (ver migração 005); nome/email abaixo continuam preenchidos
 	Nome        string           `json:"nome"`
 	Email       string           `json:"email"`
 	Categoria   SupportCategory  `json:"categoria"`

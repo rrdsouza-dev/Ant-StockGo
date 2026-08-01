@@ -6,7 +6,9 @@
  */
 import { el, renderIcons } from "../utils/helpers.js";
 import { API } from "../services/api.js";
+import { session } from "../services/store.js";
 import { notify } from "./notifications.js";
+import { openModal } from "./modal.js";
 import { applyDateMask, isValidBRDate, randomFunnyDateError } from "../utils/validators.js";
 
 /** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
@@ -184,17 +186,35 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
  * que o formulário de item selecione a categoria recém-criada na hora,
  * sem precisar recarregar nada.
  */
-function openCategoryModal(onCreated) {
+/**
+ * openCategoryModal — cria uma nova categoria e, para a gestão, também
+ * permite excluir categorias já existentes (item 3 da especificação de
+ * melhorias). Chamado tanto pelo botão "+" do formulário de item de
+ * estoque quanto pelo do Pré-Produto — mesmo modal, mesma lista, sem
+ * duplicar nada: como a categoria é uma entidade única e compartilhada
+ * (não há uma tabela separada por depósito ou por turma), excluir aqui
+ * já vale para qualquer tela que use categorias.
+ */
+async function openCategoryModal(onCreated) {
   const nameInput = el("input", { class: "input", placeholder: "Nome da categoria *" });
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), "Criar"]);
   const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+  const isGestao = session.user?.role === "gestao";
+
+  const existingList = el("div", { class: "checkbox-list", style: "max-height:160px" }, [
+    el("div", { class: "muted", style: "padding:14px;text-align:center", text: "Carregando…" }),
+  ]);
 
   const card = el("div", { class: "modal modal-sm" }, [
-    el("div", { class: "modal-header" }, [el("h3", { text: "Nova categoria" })]),
+    el("div", { class: "modal-header" }, [el("h3", { text: "Categorias" })]),
     el("div", { class: "product-modal-body" }, [
-      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), nameInput]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nova categoria" }), nameInput]),
       errEl,
+      isGestao ? el("div", { class: "field" }, [
+        el("label", { class: "field-label", text: "Categorias existentes" }),
+        existingList,
+      ]) : el("span"),
     ]),
     el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
   ]);
@@ -203,6 +223,42 @@ function openCategoryModal(onCreated) {
   backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
   cancelBtn.addEventListener("click", close);
 
+  async function loadExisting() {
+    if (!isGestao) return;
+    try {
+      const categories = await API.categories();
+      existingList.innerHTML = "";
+      if (!categories.length) {
+        existingList.appendChild(el("div", { class: "muted", style: "padding:14px;text-align:center", text: "Nenhuma categoria cadastrada." }));
+        return;
+      }
+      categories.forEach((cat) => {
+        existingList.appendChild(el("div", { class: "checkbox-list-item", style: "justify-content:space-between;cursor:default" }, [
+          el("div", { class: "checkbox-list-name", text: cat.name }),
+          el("button", { class: "icon-btn", title: "Excluir categoria", onclick: () => confirmDeleteCategory(cat) }, [el("i", { "data-lucide": "trash-2" })]),
+        ]));
+      });
+      renderIcons(existingList);
+    } catch {
+      existingList.innerHTML = "";
+      existingList.appendChild(el("div", { class: "muted", style: "padding:14px;text-align:center", text: "Erro ao carregar categorias." }));
+    }
+  }
+
+  function confirmDeleteCategory(cat) {
+    openModal({
+      title: "Excluir categoria",
+      body: `Excluir a categoria "${cat.name}"? Itens que já usam essa categoria não são afetados — apenas deixam de ter categoria.`,
+      primaryLabel: "Excluir",
+      danger: true,
+      onConfirm: async () => {
+        await API.deleteCategory(cat.id);
+        notify("Categoria excluída.", "warning");
+        loadExisting();
+      },
+    });
+  }
+
   saveBtn.addEventListener("click", async () => {
     const name = nameInput.value.trim();
     if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
@@ -210,8 +266,9 @@ function openCategoryModal(onCreated) {
     try {
       const created = await API.createCategory(name);
       notify("Categoria criada!", "success");
-      close();
+      nameInput.value = "";
       onCreated?.(created);
+      loadExisting();
     } catch (err) {
       errEl.textContent = err.message || "Erro ao criar categoria.";
     } finally {
@@ -222,6 +279,7 @@ function openCategoryModal(onCreated) {
   document.body.appendChild(backdrop);
   renderIcons(backdrop);
   setTimeout(() => nameInput.focus(), 80);
+  loadExisting();
 }
 
 /**

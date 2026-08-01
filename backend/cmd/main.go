@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
@@ -40,6 +41,7 @@ func main() {
 	categoryRepo := repositories.NewCategoryRepository(db)
 	supportRepo := repositories.NewSupportTicketRepository(db)
 	preProductRepo := repositories.NewPreProductRepository(db)
+	settingsRepo := repositories.NewSystemSettingsRepository(db)
 
 	// Services (regras de negócio)
 	classService := services.NewClassService(classRepo, depositRepo)
@@ -50,6 +52,7 @@ func main() {
 	categoryService := services.NewCategoryService(categoryRepo)
 	supportService := services.NewSupportService(supportRepo, cfg.SupportAdminCode)
 	preProductService := services.NewPreProductService(preProductRepo)
+	settingsService := services.NewSystemSettingsService(settingsRepo)
 
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
@@ -61,9 +64,25 @@ func main() {
 		Categories:  handlers.NewCategoryHandler(categoryService),
 		Support:     handlers.NewSupportHandler(supportService),
 		PreProducts: handlers.NewPreProductHandler(preProductService),
+		Settings:    handlers.NewSystemSettingsHandler(settingsService),
 		JWTManager:  jwtManager,
 		UserRepo:    userRepo,
 	}
+
+	// Limpeza automática de movimentações antigas (item novo: reverte a
+	// política anterior de "histórico nunca é apagado" — ver
+	// SystemSettingsService e RELATORIO.md). Roda uma vez ao subir o
+	// servidor e depois a cada hora, sempre lendo o período de retenção
+	// configurado no momento (a Gestão pode alterá-lo a qualquer momento
+	// pela tela de Configurações, sem precisar reiniciar o backend).
+	go func() {
+		settingsService.CleanupOldMovements()
+		ticker := time.NewTicker(1 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			settingsService.CleanupOldMovements()
+		}
+	}()
 
 	router := gin.Default()
 	router.Use(middleware.CORS(cfg.AllowedOrigin))

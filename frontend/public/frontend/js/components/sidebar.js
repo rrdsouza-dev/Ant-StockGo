@@ -13,6 +13,7 @@ const NAV = [
   { path: "/deposits",    label: "Depósitos",            icon: "warehouse" },
   { path: "/reports",     label: "Relatórios",           icon: "clipboard-list" },
   { path: "/users",       label: "Usuários",             icon: "users", gestaoOnly: true },
+  { path: "/settings",    label: "Configurações",        icon: "settings", gestaoOnly: true },
 ];
 
 const BOTTOM = [
@@ -84,7 +85,7 @@ export function Sidebar(currentPath) {
   };
 
   const aside = el("aside", { class: "sidebar" }, [
-    el("div", { class: "brand" }, [el("img", { src: "assets/images/logo-dark.jpg", alt: "ANT Stock" })]),
+    el("div", { class: "brand" }, [el("img", { src: "assets/images/IconeLogo.png", alt: "ANT Stock" })]),
     userInfoCard(),
     el("nav", {}, navVisivel.map(linkNode)),
     el("div", { class: "nav-bottom" }, bottomVisivel.map(bottomNode)),

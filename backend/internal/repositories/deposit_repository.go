@@ -164,15 +164,19 @@ func (r *DepositRepository) Deactivate(id string) error {
 
 func scanDeposit(row *sql.Row) (domain.Deposit, error) {
 	var d domain.Deposit
-	err := row.Scan(&d.ID, &d.Name, &d.Description, &d.IsAdministrative, &d.Active, &d.CreatedBy, &d.CreatedAt, &d.UpdatedAt)
+	var createdBy sql.NullString
+	err := row.Scan(&d.ID, &d.Name, &d.Description, &d.IsAdministrative, &d.Active, &createdBy, &d.CreatedAt, &d.UpdatedAt)
 	if err == sql.ErrNoRows {
 		return domain.Deposit{}, ErrNotFound
 	}
+	d.CreatedBy = createdBy.String
 	return d, err
 }
 
 func scanDepositRows(rows *sql.Rows) (domain.Deposit, error) {
 	var d domain.Deposit
-	err := rows.Scan(&d.ID, &d.Name, &d.Description, &d.IsAdministrative, &d.Active, &d.CreatedBy, &d.CreatedAt, &d.UpdatedAt)
+	var createdBy sql.NullString
+	err := rows.Scan(&d.ID, &d.Name, &d.Description, &d.IsAdministrative, &d.Active, &createdBy, &d.CreatedAt, &d.UpdatedAt)
+	d.CreatedBy = createdBy.String
 	return d, err
 }

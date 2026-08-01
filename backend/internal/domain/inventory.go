@@ -48,6 +48,6 @@ type StockMovement struct {
 	Type            MovementType `json:"type"`
 	Quantity        int          `json:"quantity"`
 	Note            string       `json:"note,omitempty"`
-	CreatedBy       string       `json:"created_by"`
+	CreatedBy       string       `json:"created_by"` // vazio se o usuário autor já foi excluído (ver migração 005)
 	CreatedAt       time.Time    `json:"created_at"`
 }

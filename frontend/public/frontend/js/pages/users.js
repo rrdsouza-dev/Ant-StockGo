@@ -121,10 +121,29 @@ export function UsersPage(root, ctx) {
           { key: "active", label: "Status", render: (r) =>
             el("span", { class: `chip ${r.active ? "chip-success" : "chip-danger"}`, text: r.active ? "Ativo" : "Inativo" })
           },
+          { key: "acoes", label: "Ações", render: (r) =>
+            r.role === "professor"
+              ? el("button", { class: "icon-btn", title: "Excluir conta", onclick: guardedClick(() => deleteProfessor(r)) }, [el("i", { "data-lucide": "trash-2" })])
+              : el("span", { class: "muted", text: "—" })
+          },
         ],
       });
       body.appendChild(table.node);
       renderIcons(body);
+    }
+
+    function deleteProfessor(user) {
+      openModal({
+        title: "Excluir conta de professor",
+        body: `Tem certeza de que deseja excluir esta conta de professor (${user.name})? Esta ação não poderá ser desfeita.`,
+        primaryLabel: "Excluir",
+        danger: true,
+        onConfirm: async () => {
+          await API.deleteUser(user.id);
+          notify("Conta de professor excluída.", "warning");
+          loadBody();
+        },
+      });
     }
 
     content.append(head, tabsRow, body);

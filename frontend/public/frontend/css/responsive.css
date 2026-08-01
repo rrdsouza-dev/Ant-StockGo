@@ -7,7 +7,7 @@
 @media (max-width: 960px) {
   .auth-wrap { grid-template-columns: 1fr; }
   .auth-right { display: none; }
-  .auth-left { padding: 16px; }
+  .auth-left { padding: 16px; max-width: min(560px, 92vw); }
 }
 
 @media (max-width: 860px) {

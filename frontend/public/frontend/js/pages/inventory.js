@@ -77,7 +77,7 @@ export function InventoryPage(root, ctx) {
       ]),
     ]);
 
-    const search = el("input", { class: "input", placeholder: "Buscar por nome ou código…", style: "max-width:340px" });
+    const search = el("input", { class: "input", placeholder: "Buscar por nome ou código…", style: "max-width:340px;position:relative;top:-6px" });
     const depositSelect = el("select", { class: "select", style: "max-width:260px" });
     const filters = el("div", { class: "filters-row" }, [search, depositSelect]);
     const grid = el("div", { class: "product-grid stagger" });

@@ -1,9 +1,13 @@
 package services
 
 import (
+	"errors"
+
 	"wms-backend/internal/domain"
 	"wms-backend/internal/repositories"
 )
+
+var ErrCannotDeleteNonProfessor = errors.New("esta funcionalidade só permite excluir contas de professor")
 
 // UserService monta a visão pública de um usuário, incluindo suas turmas
 // e depósitos vinculados quando aplicável.
@@ -43,4 +47,22 @@ func (s *UserService) Me(user domain.User) (domain.PublicUser, error) {
 // List retorna todos os usuários ativos (somente gestão).
 func (s *UserService) List() ([]domain.User, error) {
 	return s.users.List()
+}
+
+// DeleteProfessor exclui permanentemente uma conta de professor.
+// Deliberadamente restrito a contas com papel "professor" — mesmo que a
+// rota já seja protegida para gestão, esta checagem no service impede
+// que o próprio endpoint seja usado para excluir uma conta de gestão
+// (inclusive por engano, passando o id errado). Registros que o
+// professor tenha criado (movimentações, depósitos, Pré-Produtos,
+// chamados de suporte) são preservados — ver migração 005.
+func (s *UserService) DeleteProfessor(id string) error {
+	target, err := s.users.FindByID(id)
+	if err != nil {
+		return err
+	}
+	if target.Role != domain.RoleProfessor {
+		return ErrCannotDeleteNonProfessor
+	}
+	return s.users.Delete(id)
 }

@@ -45,3 +45,10 @@ func (s *CategoryService) Create(name string) (domain.Category, error) {
 func (s *CategoryService) List() ([]domain.Category, error) {
 	return s.categories.List()
 }
+
+// Delete remove uma categoria (somente gestão — restrição aplicada pelo
+// middleware de rota). Itens que a usavam ficam sem categoria, mas
+// continuam existindo normalmente.
+func (s *CategoryService) Delete(id string) error {
+	return s.categories.Delete(id)
+}
