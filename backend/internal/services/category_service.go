@@ -9,6 +9,7 @@ import (
 )
 
 var ErrCategoryInUse = errors.New("já existe uma categoria com este nome")
+var ErrCategoryHasLinkedItems = errors.New("esta categoria está sendo utilizada por itens de estoque ou Pré-Produtos e não pode ser excluída")
 
 // CategoryService concentra as regras de negócio de categorias de item
 // de estoque. É uma entidade simples de propósito: existir para o
@@ -47,8 +48,17 @@ func (s *CategoryService) List() ([]domain.Category, error) {
 }
 
 // Delete remove uma categoria (somente gestão — restrição aplicada pelo
-// middleware de rota). Itens que a usavam ficam sem categoria, mas
-// continuam existindo normalmente.
+// middleware de rota). Antes de excluir, verifica se algum item de
+// estoque ou Pré-Produto ainda referencia esta categoria — se sim, a
+// exclusão é recusada com uma mensagem clara (ErrCategoryHasLinkedItems)
+// em vez de deixar esses registros ficarem sem categoria silenciosamente.
 func (s *CategoryService) Delete(id string) error {
+	count, err := s.categories.CountUsage(id)
+	if err != nil {
+		return err
+	}
+	if count > 0 {
+		return ErrCategoryHasLinkedItems
+	}
 	return s.categories.Delete(id)
 }

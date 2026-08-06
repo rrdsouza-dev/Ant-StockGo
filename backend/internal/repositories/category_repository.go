@@ -55,13 +55,29 @@ func (r *CategoryRepository) NameExists(name string) (bool, error) {
 	return exists, err
 }
 
-// Delete remove permanentemente a categoria. Itens de estoque e
-// Pré-Produtos que a usavam simplesmente ficam sem categoria
-// (category_id vira NULL, ver `ON DELETE SET NULL` nas migrações 002 e
-// 004) — nada mais é apagado.
+// Delete remove permanentemente a categoria do banco. Só é chamado pelo
+// service depois de confirmar (via CountUsage) que nenhum item de
+// estoque ou Pré-Produto ainda a referencia — na prática o
+// `ON DELETE SET NULL` das migrações 002/004 nunca chega a disparar por
+// este caminho, mas permanece como rede de segurança.
 func (r *CategoryRepository) Delete(id string) error {
 	_, err := r.db.Exec(`DELETE FROM categories WHERE id = $1`, id)
 	return err
+}
+
+// CountUsage retorna quantos itens de estoque e Pré-Produtos ainda
+// referenciam esta categoria. Usado pelo service para bloquear a
+// exclusão com uma mensagem clara em vez de deixar a categoria sumir
+// silenciosamente dos registros que a usavam (ver complemento de
+// exclusão de categorias — item 2).
+func (r *CategoryRepository) CountUsage(id string) (int, error) {
+	var count int
+	err := r.db.QueryRow(`
+		SELECT
+			(SELECT COUNT(*) FROM inventory WHERE category_id = $1) +
+			(SELECT COUNT(*) FROM pre_products WHERE category_id = $1)
+	`, id).Scan(&count)
+	return count, err
 }
 
 func scanCategory(row *sql.Row) (domain.Category, error) {

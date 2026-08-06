@@ -134,7 +134,15 @@ export function MovementsPage(root, ctx) {
     function renderManualOptions() {
       manualSelect.innerHTML = "";
       manualSelect.appendChild(el("option", { value: "", text: "Selecione um item…" }));
-      items.forEach((i) => manualSelect.appendChild(el("option", { value: i.id, text: `${i.name} (saldo: ${i.quantity})` })));
+      items.forEach((i) => {
+        // Inclui marca e lote no rótulo para diferenciar itens com o
+        // mesmo nome/código mas lotes diferentes (ver openChooseLotModal
+        // no scanner — aqui a mesma necessidade existe na busca manual).
+        const parts = [i.name];
+        if (i.brand) parts.push(i.brand);
+        if (i.lot_number) parts.push(`Lote ${i.lot_number}`);
+        manualSelect.appendChild(el("option", { value: i.id, text: `${parts.join(" — ")} (saldo: ${i.quantity})` }));
+      });
     }
 
     async function loadMovements() {

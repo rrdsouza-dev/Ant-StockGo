@@ -112,6 +112,20 @@ export function InventoryPage(root, ctx) {
       return { label: "Em estoque", cls: "chip-success" };
     }
 
+    // Conta quantos itens de estoque compartilham o mesmo código de
+    // barras (SKU). Quando > 1, é o mesmo produto (ou produtos
+    // diferentes que por acaso têm o mesmo código) guardado em lotes
+    // separados — usado para mostrar o indicador verde no card.
+    function countBySku() {
+      const counts = {};
+      items.forEach((i) => {
+        const sku = (i.sku || "").trim().toLowerCase();
+        if (!sku) return;
+        counts[sku] = (counts[sku] || 0) + 1;
+      });
+      return counts;
+    }
+
     function rerender() {
       grid.innerHTML = "";
       const rows = visibleItems();
@@ -119,15 +133,18 @@ export function InventoryPage(root, ctx) {
         grid.appendChild(el("div", { class: "muted", style: "padding:30px;text-align:center;grid-column:1/-1" }, ["Nenhum item de estoque encontrado."]));
         return;
       }
-      rows.forEach((item) => grid.appendChild(buildCard(item)));
+      const skuCounts = countBySku();
+      rows.forEach((item) => grid.appendChild(buildCard(item, skuCounts)));
       renderIcons(grid);
     }
 
-    function buildCard(item) {
+    function buildCard(item, skuCounts) {
       const status = statusFor(item);
       const locationText = formatLocation(item.location);
       const expiryText = isoToBRDate(item.expiry_date);
       const expiryWarn = isExpiringSoon(item.expiry_date);
+      const sku = (item.sku || "").trim().toLowerCase();
+      const hasMultipleLots = sku && (skuCounts[sku] || 0) > 1;
 
       const metaLine = el("div", { class: "pc-meta" });
       if (item.category?.name) metaLine.appendChild(el("span", { class: "chip chip-info", text: item.category.name }));
@@ -142,16 +159,29 @@ export function InventoryPage(root, ctx) {
           text: `Lote ${item.lot_number}`,
         }));
       }
+      // Quantidade mínima em destaque no card — já existia como dado
+      // (usado no cálculo de "Estoque baixo"), agora também fica visível.
+      metaLine.appendChild(el("span", { class: "muted", style: "font-size:0.78em", text: `Qtd. mínima: ${item.min_quantity}` }));
 
-      const card = el("article", { class: "product-card" }, [
+      const card = el("article", { class: "product-card", style: "position:relative" }, [
+        // Indicador de "separado por lote": aparece quando este código de
+        // barras tem mais de um item de estoque cadastrado (mesmo produto
+        // em lotes diferentes, ou produtos/marcas diferentes que
+        // compartilham o código). Só um sinal visual rápido — o card
+        // continua mostrando os dados do lote específico normalmente.
+        hasMultipleLots ? el("span", {
+          title: `Este código tem ${skuCounts[sku]} lotes cadastrados`,
+          style: "position:absolute;top:-4px;right:-4px;width:12px;height:12px;border-radius:50%;background:#22c55e;border:2px solid #fff;box-shadow:0 0 0 1px rgba(34,197,94,0.4)",
+        }) : el("span"),
         el("div", { class: "pc-head" }, [
           el("div", {}, [
-            el("div", { class: "pc-code", text: item.sku || item.id.slice(0, 8) }),
             el("div", { class: "pc-name", text: item.name }),
-            // Marca ao lado do nome — permite diferenciar produtos com
-            // nome/código parecidos mas marcas diferentes, sem depender
-            // de observações (ver itens 2/3/7 da especificação).
-            item.brand ? el("div", { class: "muted", style: "font-size:0.82em;font-weight:500", text: `Marca: ${item.brand}` }) : el("span"),
+            // Marca logo abaixo do nome, bem clara — permite diferenciar
+            // produtos com nome/código parecidos mas marcas diferentes,
+            // sem depender de observações (ver itens 2/3/7 da especificação
+            // original e o complemento de marca no card).
+            item.brand ? el("div", { class: "muted", style: "font-size:0.85em;font-weight:600", text: `Marca: ${item.brand}` }) : el("span"),
+            el("div", { class: "pc-code", text: `Código: ${item.sku || item.id.slice(0, 8)}` }),
           ]),
           el("span", { class: `chip ${status.cls}`, text: status.label }),
         ]),

@@ -78,10 +78,13 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
   };
   f.expiry.addEventListener("input", () => { f.expiry.value = applyDateMask(f.expiry.value); expiryErr.textContent = ""; });
 
-  // ── Categoria + botão "+" ──────────────────────────────────
+  // ── Categoria + botões "+" (nova) e "−" (excluir) ──────────────
   // Criação de categoria disponível para qualquer usuário autenticado
   // (gestão e professor) — mesmo endpoint, mesmo modal, sem duplicar
   // lógica (ver routes.go: POST /categories não é mais gestaoOnly).
+  // Exclusão é restrita a gestão pelo próprio backend (DELETE
+  // /categories/:id é gestaoOnly) — o botão aparece para qualquer
+  // usuário, mas quem não tiver permissão recebe o erro do backend.
   const categorySelect = el("select", { class: "select" }, [
     el("option", { value: "", text: "Nenhuma" }),
     ...categories.map((c) => el("option", { value: c.id, text: c.name, selected: item?.category_id === c.id })),
@@ -92,7 +95,10 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
     categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
     categorySelect.value = created.id;
   }));
-  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn]);
+  const removeCategoryBtn = el("button", { type: "button", class: "icon-btn", title: "Excluir categoria" }, [el("i", { "data-lucide": "minus" })]);
+  removeCategoryBtn.addEventListener("click", () => openCategoryModal(null, { focusDelete: true }));
+  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn, removeCategoryBtn]);
+
 
   // ── Localização genérica: corredor / torre / prateleira / posição ──
   const aisleSelect = numberSelect(10, loc.aisle);
@@ -200,21 +206,19 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
 }
 
 /**
- * openCategoryModal — pequeno modal para cadastrar uma nova categoria
- * (botão "+" ao lado do campo Categoria). Chama onCreated(category) para
- * que o formulário de item selecione a categoria recém-criada na hora,
- * sem precisar recarregar nada.
- */
-/**
  * openCategoryModal — cria uma nova categoria e, para a gestão, também
- * permite excluir categorias já existentes (item 3 da especificação de
- * melhorias). Chamado tanto pelo botão "+" do formulário de item de
- * estoque quanto pelo do Pré-Produto — mesmo modal, mesma lista, sem
- * duplicar nada: como a categoria é uma entidade única e compartilhada
- * (não há uma tabela separada por depósito ou por turma), excluir aqui
- * já vale para qualquer tela que use categorias.
+ * permite excluir categorias já existentes. Chamado tanto pelo botão "+"
+ * quanto pelo botão "−" (excluir) do formulário de item de estoque e do
+ * Pré-Produto — mesmo modal, mesma lista, sem duplicar nada: como a
+ * categoria é uma entidade única e compartilhada (não há uma tabela
+ * separada por depósito ou por turma), excluir aqui já vale para
+ * qualquer tela que use categorias.
+ *
+ * `focusDelete` (usado pelo botão "−") reordena o modal para priorizar
+ * visualmente a lista de exclusão, já que é essa a ação que o usuário
+ * veio fazer — sem duplicar formulário nem lógica.
  */
-async function openCategoryModal(onCreated) {
+async function openCategoryModal(onCreated, { focusDelete = false } = {}) {
   const nameInput = el("input", { class: "input", placeholder: "Nome da categoria *" });
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), "Criar"]);
@@ -226,14 +230,22 @@ async function openCategoryModal(onCreated) {
   ]);
 
   const card = el("div", { class: "modal modal-sm" }, [
-    el("div", { class: "modal-header" }, [el("h3", { text: "Categorias" })]),
+    el("div", { class: "modal-header" }, [el("h3", { text: focusDelete ? "Excluir categoria" : "Categorias" })]),
     el("div", { class: "product-modal-body" }, [
+      // Quando aberto pelo botão "−" (excluir), a lista de categorias já
+      // vem primeiro e em destaque, já que é essa a ação que o usuário
+      // veio fazer — o campo de criação continua disponível logo abaixo.
+      isGestao && focusDelete ? el("div", { class: "field" }, [
+        el("label", { class: "field-label", text: "Escolha a categoria para excluir" }),
+        existingList,
+      ]) : el("span"),
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nova categoria" }), nameInput]),
       errEl,
-      isGestao ? el("div", { class: "field" }, [
+      isGestao && !focusDelete ? el("div", { class: "field" }, [
         el("label", { class: "field-label", text: "Categorias existentes" }),
         existingList,
       ]) : el("span"),
+      !isGestao ? el("p", { class: "muted", style: "font-size:0.8em", text: "Apenas a gestão pode excluir categorias." }) : el("span"),
     ]),
     el("div", { class: "modal-actions" }, [cancelBtn, saveBtn]),
   ]);
@@ -267,13 +279,21 @@ async function openCategoryModal(onCreated) {
   function confirmDeleteCategory(cat) {
     openModal({
       title: "Excluir categoria",
-      body: `Excluir a categoria "${cat.name}"? Itens que já usam essa categoria não são afetados — apenas deixam de ter categoria.`,
+      body: `Excluir a categoria "${cat.name}"? Só é possível excluir categorias que não estejam sendo usadas por nenhum item de estoque ou Pré-Produto.`,
       primaryLabel: "Excluir",
       danger: true,
       onConfirm: async () => {
-        await API.deleteCategory(cat.id);
-        notify("Categoria excluída.", "warning");
-        loadExisting();
+        try {
+          await API.deleteCategory(cat.id);
+          notify("Categoria excluída.", "warning");
+          loadExisting();
+        } catch (err) {
+          // Backend recusa (409) quando a categoria ainda está vinculada
+          // a itens de estoque ou Pré-Produtos — mensagem clara em vez
+          // de falhar silenciosamente (ver complemento de exclusão de
+          // categorias — item 2).
+          notify(err.message || "Não foi possível excluir esta categoria.", "error");
+        }
       },
     });
   }
@@ -376,8 +396,14 @@ export function openMoveModal({ item, type = "in", onSave }) {
 /**
  * openScanModal — atalho do leitor de código de barras. Ordem de
  * reconhecimento (ver item 6 da especificação):
- *   1. Já existe um item de estoque com esse SKU → fluxo normal de
- *      movimentação (comportamento original, inalterado).
+ *   1. Existe(m) item(ns) de estoque com esse SKU:
+ *      - só um → fluxo normal de movimentação direto (comportamento
+ *        original, inalterado).
+ *      - mais de um → o mesmo código de barras tem vários lotes
+ *        cadastrados (mesmo produto, ou até produtos/marcas diferentes
+ *        que compartilham código). Mostra um card para o usuário
+ *        escolher explicitamente qual lote está recebendo a
+ *        movimentação — nunca assume "1 código = 1 lote".
  *   2. Não existe item, mas o código já está associado a um Pré-Produto
  *      → abre direto a entrada rápida (quantidade/validade/lote), sem
  *      pedir para escolher o produto de novo — reconhecimento automático.
@@ -385,9 +411,13 @@ export function openMoveModal({ item, type = "in", onSave }) {
  *      Pré-Produto existente antes de prosseguir.
  */
 export async function openScanModal({ code, items, depositId, onSave }) {
-  const found = items.find((i) => (i.sku || "").toLowerCase() === code.toLowerCase());
-  if (found) {
-    openMoveModal({ item: found, onSave });
+  const matches = items.filter((i) => (i.sku || "").toLowerCase() === code.toLowerCase());
+  if (matches.length === 1) {
+    openMoveModal({ item: matches[0], onSave });
+    return;
+  }
+  if (matches.length > 1) {
+    openChooseLotModal({ code, matches, onSave });
     return;
   }
 
@@ -400,6 +430,52 @@ export async function openScanModal({ code, items, depositId, onSave }) {
   }
 
   openAssociateBarcodeModal({ code, depositId, onSave });
+}
+
+/**
+ * openChooseLotModal — quando um código de barras corresponde a mais de
+ * um item de estoque (o mesmo produto guardado em lotes diferentes, ou
+ * até produtos/marcas diferentes que por acaso compartilham o mesmo
+ * código), pede para o usuário escolher explicitamente qual lote está
+ * recebendo a entrada/saída antes de prosseguir. Nunca movimenta um
+ * lote "genérico" sem essa escolha.
+ */
+function openChooseLotModal({ code, matches, onSave }) {
+  const list = el("div", { style: "display:flex;flex-direction:column;gap:8px;max-height:50vh;overflow:auto" });
+
+  const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
+  const card = el("div", { class: "modal" }, [
+    el("div", { class: "modal-header" }, [el("h3", { text: "Escolha o lote" })]),
+    el("div", { class: "product-modal-body" }, [
+      el("p", { class: "muted", style: "margin-bottom:12px", text: `O código "${code}" está cadastrado em ${matches.length} lotes diferentes. Escolha qual está sendo movimentado:` }),
+      list,
+    ]),
+    el("div", { class: "modal-actions" }, [cancelBtn]),
+  ]);
+  const backdrop = el("div", { class: "modal-backdrop" }, [card]);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  cancelBtn.addEventListener("click", close);
+
+  matches.forEach((item) => {
+    const row = el("button", {
+      type: "button",
+      class: "product-card",
+      style: "display:flex;justify-content:space-between;align-items:center;text-align:left;width:100%;cursor:pointer",
+    }, [
+      el("div", {}, [
+        el("div", { class: "pc-name", text: item.name }),
+        item.brand ? el("div", { class: "muted", style: "font-size:0.82em;font-weight:600", text: `Marca: ${item.brand}` }) : el("span"),
+        el("div", { class: "muted", style: "font-size:0.8em", text: `Lote ${item.lot_number || "—"} · Saldo: ${item.quantity} un.` }),
+      ]),
+      el("i", { "data-lucide": "chevron-right" }),
+    ]);
+    row.addEventListener("click", () => { close(); openMoveModal({ item, onSave }); });
+    list.appendChild(row);
+  });
+
+  document.body.appendChild(backdrop);
+  renderIcons(backdrop);
 }
 
 /**
@@ -502,7 +578,9 @@ export async function openPreProductModal({ preProduct, onSave } = {}) {
     categorySelect.appendChild(el("option", { value: created.id, text: created.name }));
     categorySelect.value = created.id;
   }));
-  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn]);
+  const removeCategoryBtnPP = el("button", { type: "button", class: "icon-btn", title: "Excluir categoria" }, [el("i", { "data-lucide": "minus" })]);
+  removeCategoryBtnPP.addEventListener("click", () => openCategoryModal(null, { focusDelete: true }));
+  const categoryRow = el("div", { class: "field-inline-add" }, [categorySelect, addCategoryBtn, removeCategoryBtnPP]);
 
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), isEdit ? "Salvar" : "Criar"]);
