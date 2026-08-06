@@ -11,7 +11,7 @@ import { notify } from "../components/notifications.js";
 import { guardedClick, sanitize } from "../utils/security.js";
 import { exportExcel } from "../utils/exportExcel.js";
 import { exportTxt } from "../utils/exportTxt.js";
-import { openInventoryItemModal, openMoveModal, openPreProductModal } from "../components/inventoryModal.js";
+import { openInventoryItemModal, openMoveModal, openPreProductListModal } from "../components/inventoryModal.js";
 import { openModal } from "../components/modal.js";
 
 /** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
@@ -65,7 +65,7 @@ export function InventoryPage(root, ctx) {
           if (!depositId) { notify("Selecione um depósito.", "warning", { record: false }); return; }
           openInventoryItemModal({ depositId, onSave: load });
         }) }, [el("i", { "data-lucide": "plus" }), "Adicionar item"]),
-        el("button", { class: "btn btn-soft", onclick: guardedClick(() => openPreProductModal({})) }, [el("i", { "data-lucide": "package-plus" }), "Pré-Produto"]),
+        el("button", { class: "btn btn-soft", onclick: guardedClick(() => openPreProductListModal({ onChanged: load })) }, [el("i", { "data-lucide": "package-plus" }), "Pré-Produtos"]),
         el("button", { class: "btn btn-primary", onclick: guardedClick(() => {
           exportTxt(exportRows(), "estoque.txt");
           notify("Exportado TXT.", "success");
@@ -88,6 +88,7 @@ export function InventoryPage(root, ctx) {
     function exportRows() {
       return visibleItems().map((i) => ({
         nome: i.name,
+        marca: i.brand || "",
         sku: i.sku || "",
         quantidade: i.quantity,
         quantidade_minima: i.min_quantity,
@@ -102,7 +103,7 @@ export function InventoryPage(root, ctx) {
     function visibleItems() {
       const q = sanitize(query).toLowerCase();
       if (!q) return items;
-      return items.filter((i) => [i.name, i.sku].some((v) => (v || "").toLowerCase().includes(q)));
+      return items.filter((i) => [i.name, i.sku, i.brand].some((v) => (v || "").toLowerCase().includes(q)));
     }
 
     function statusFor(item) {
@@ -131,13 +132,26 @@ export function InventoryPage(root, ctx) {
       const metaLine = el("div", { class: "pc-meta" });
       if (item.category?.name) metaLine.appendChild(el("span", { class: "chip chip-info", text: item.category.name }));
       if (expiryText) metaLine.appendChild(el("span", { class: `chip ${expiryWarn ? "chip-danger" : "chip-success"}`, text: `Validade: ${expiryText}` }));
-      if (item.lot_number) metaLine.appendChild(el("span", { class: "muted", style: "font-size:0.78em", text: `Lote: ${item.lot_number}` }));
+      // Lote em destaque (badge), já que produtos iguais podem ter vários
+      // lotes simultâneos com estoque/validade próprios (ver item 16/17
+      // da especificação). Cor sinaliza se está perto de vencer.
+      if (item.lot_number) {
+        metaLine.appendChild(el("span", {
+          class: `chip ${expiryWarn ? "chip-danger" : "chip-info"}`,
+          style: "font-weight:600",
+          text: `Lote ${item.lot_number}`,
+        }));
+      }
 
       const card = el("article", { class: "product-card" }, [
         el("div", { class: "pc-head" }, [
           el("div", {}, [
             el("div", { class: "pc-code", text: item.sku || item.id.slice(0, 8) }),
             el("div", { class: "pc-name", text: item.name }),
+            // Marca ao lado do nome — permite diferenciar produtos com
+            // nome/código parecidos mas marcas diferentes, sem depender
+            // de observações (ver itens 2/3/7 da especificação).
+            item.brand ? el("div", { class: "muted", style: "font-size:0.82em;font-weight:500", text: `Marca: ${item.brand}` }) : el("span"),
           ]),
           el("span", { class: `chip ${status.cls}`, text: status.label }),
         ]),

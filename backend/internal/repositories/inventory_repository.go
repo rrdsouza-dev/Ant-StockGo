@@ -20,17 +20,17 @@ func NewInventoryRepository(db *sql.DB) *InventoryRepository {
 	return &InventoryRepository{db: db}
 }
 
-const insertColumns = `id, deposit_id, name, sku, quantity, min_quantity,
+const insertColumns = `id, deposit_id, name, sku, brand, quantity, min_quantity,
 		expiry_date, lot_number, category_id, notes, location, active, created_at, updated_at`
 
 func (r *InventoryRepository) Create(item domain.InventoryItem) (domain.InventoryItem, error) {
 	query := `
-		INSERT INTO inventory (deposit_id, name, sku, quantity, min_quantity,
+		INSERT INTO inventory (deposit_id, name, sku, brand, quantity, min_quantity,
 			expiry_date, lot_number, category_id, notes, location, active)
-		VALUES ($1, $2, $3, 0, $4, $5, $6, $7, $8, $9, true)
+		VALUES ($1, $2, $3, $4, 0, $5, $6, $7, $8, $9, $10, true)
 		RETURNING ` + insertColumns
 	row := r.db.QueryRow(query,
-		item.DepositID, item.Name, item.SKU, item.MinQuantity,
+		item.DepositID, item.Name, item.SKU, item.Brand, item.MinQuantity,
 		item.ExpiryDate, item.LotNumber, item.CategoryID, item.Notes, item.Location,
 	)
 	return scanInventoryItem(row)
@@ -47,7 +47,7 @@ func (r *InventoryRepository) ListByDeposits(depositIDs []string) ([]domain.Inve
 		return []domain.InventoryItem{}, nil
 	}
 	query := `
-		SELECT i.id, i.deposit_id, i.name, i.sku, i.quantity, i.min_quantity,
+		SELECT i.id, i.deposit_id, i.name, i.sku, i.brand, i.quantity, i.min_quantity,
 			i.expiry_date, i.lot_number, i.category_id, i.notes, i.location,
 			i.active, i.created_at, i.updated_at, c.name
 		FROM inventory i
@@ -77,15 +77,15 @@ func (r *InventoryRepository) FindByID(id string) (domain.InventoryItem, error) 
 	return scanInventoryItem(row)
 }
 
-func (r *InventoryRepository) Update(id, name, sku string, minQuantity int, expiryDate *time.Time, lotNumber string, categoryID *string, notes string, location domain.Location) (domain.InventoryItem, error) {
+func (r *InventoryRepository) Update(id, name, sku, brand string, minQuantity int, expiryDate *time.Time, lotNumber string, categoryID *string, notes string, location domain.Location) (domain.InventoryItem, error) {
 	query := `
 		UPDATE inventory SET
-			name = $1, sku = $2, min_quantity = $3, expiry_date = $4,
-			lot_number = $5, category_id = $6, notes = $7, location = $8,
+			name = $1, sku = $2, brand = $3, min_quantity = $4, expiry_date = $5,
+			lot_number = $6, category_id = $7, notes = $8, location = $9,
 			updated_at = now()
-		WHERE id = $9
+		WHERE id = $10
 		RETURNING ` + insertColumns
-	row := r.db.QueryRow(query, name, sku, minQuantity, expiryDate, lotNumber, categoryID, notes, location, id)
+	row := r.db.QueryRow(query, name, sku, brand, minQuantity, expiryDate, lotNumber, categoryID, notes, location, id)
 	return scanInventoryItem(row)
 }
 
@@ -218,7 +218,7 @@ func scanInventoryItem(row *sql.Row) (domain.InventoryItem, error) {
 	var i domain.InventoryItem
 	var expiry sql.NullTime
 	var categoryID sql.NullString
-	err := row.Scan(&i.ID, &i.DepositID, &i.Name, &i.SKU, &i.Quantity, &i.MinQuantity,
+	err := row.Scan(&i.ID, &i.DepositID, &i.Name, &i.SKU, &i.Brand, &i.Quantity, &i.MinQuantity,
 		&expiry, &i.LotNumber, &categoryID, &i.Notes, &i.Location,
 		&i.Active, &i.CreatedAt, &i.UpdatedAt)
 	if err == sql.ErrNoRows {
@@ -236,7 +236,7 @@ func scanInventoryItemWithCategoryRows(rows *sql.Rows) (domain.InventoryItem, er
 	var expiry sql.NullTime
 	var categoryID sql.NullString
 	var categoryName sql.NullString
-	err := rows.Scan(&i.ID, &i.DepositID, &i.Name, &i.SKU, &i.Quantity, &i.MinQuantity,
+	err := rows.Scan(&i.ID, &i.DepositID, &i.Name, &i.SKU, &i.Brand, &i.Quantity, &i.MinQuantity,
 		&expiry, &i.LotNumber, &categoryID, &i.Notes, &i.Location,
 		&i.Active, &i.CreatedAt, &i.UpdatedAt, &categoryName)
 	if err != nil {

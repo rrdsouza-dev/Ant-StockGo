@@ -119,21 +119,21 @@ export const API = {
     const list = await request("/inventory", { params: { deposit_id: depositId, class_id: classId } });
     return list || [];
   },
-  async createInventoryItem({ depositId, name, sku, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
+  async createInventoryItem({ depositId, name, sku, brand, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
     return request("/inventory", {
       method: "POST",
       body: {
-        deposit_id: depositId, name, sku, min_quantity: minQuantity,
+        deposit_id: depositId, name, sku, brand: brand || "", min_quantity: minQuantity,
         expiry_date: expiryDate, lot_number: lotNumber, category_id: categoryId || null,
         notes, location: location || {},
       },
     });
   },
-  async updateInventoryItem(id, { name, sku, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
+  async updateInventoryItem(id, { name, sku, brand, minQuantity, expiryDate, lotNumber, categoryId, notes, location }) {
     return request(`/inventory/${id}`, {
       method: "PATCH",
       body: {
-        name, sku, min_quantity: minQuantity,
+        name, sku, brand: brand || "", min_quantity: minQuantity,
         expiry_date: expiryDate, lot_number: lotNumber, category_id: categoryId || null,
         notes, location: location || {},
       },

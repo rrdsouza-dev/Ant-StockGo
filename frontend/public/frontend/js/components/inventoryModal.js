@@ -10,6 +10,7 @@ import { session } from "../services/store.js";
 import { notify } from "./notifications.js";
 import { openModal } from "./modal.js";
 import { applyDateMask, isValidBRDate, randomFunnyDateError } from "../utils/validators.js";
+import { guardedClick } from "../utils/security.js";
 
 /** Converte "2026-12-31" (ou ISO completo) para "31/12/2026" para exibição. */
 function isoToBRDate(iso) {
@@ -65,11 +66,14 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
   const f = {
     name: el("input", { class: "input", value: item?.name || "", placeholder: "Nome do item *" }),
     sku: el("input", { class: "input", value: item?.sku || "", placeholder: "Código / SKU (opcional)" }),
+    brand: el("input", { class: "input", value: item?.brand || "", placeholder: "Marca (opcional)" }),
     min: el("input", { class: "input", type: "number", min: "0", value: item?.min_quantity ?? 0, placeholder: "Quantidade mínima" }),
     expiry: el("input", {
       class: "input", value: isoToBRDate(item?.expiry_date), placeholder: "DD/MM/AAAA", inputmode: "numeric", maxlength: "10",
     }),
-    lot: el("input", { class: "input", value: item?.lot_number || "", placeholder: "Número do lote (opcional)" }),
+    // Lote é obrigatório ao entrar no estoque — mesmo princípio de expiry_date,
+    // validado tanto aqui (feedback imediato) quanto no backend (fonte da verdade).
+    lot: el("input", { class: "input", value: item?.lot_number || "", placeholder: "Número do lote *" }),
     notes: el("textarea", { class: "input", rows: "3", placeholder: "Observações (opcional)", text: item?.notes || "" }),
   };
   f.expiry.addEventListener("input", () => { f.expiry.value = applyDateMask(f.expiry.value); expiryErr.textContent = ""; });
@@ -97,6 +101,7 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
   const positionSel = positionSelect(loc.position);
 
   const expiryErr = el("div", { class: "error-text" });
+  const lotErr = el("div", { class: "error-text" });
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "save" }), isEdit ? "Salvar" : "Criar"]);
   const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
@@ -107,11 +112,15 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Nome *" }), f.name]),
       el("div", { class: "form-grid-2" }, [
         el("div", { class: "field" }, [el("label", { class: "field-label", text: "Código / SKU" }), f.sku]),
-        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Quantidade mínima" }), f.min]),
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Marca" }), f.brand]),
       ]),
       el("div", { class: "form-grid-2" }, [
         el("div", { class: "field" }, [el("label", { class: "field-label", text: "Data de validade *" }), f.expiry, expiryErr]),
-        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote" }), f.lot]),
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote *" }), f.lot, lotErr]),
+      ]),
+      el("div", { class: "form-grid-2" }, [
+        el("div", { class: "field" }, [el("label", { class: "field-label", text: "Quantidade mínima" }), f.min]),
+        el("div", {}),
       ]),
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Categoria" }), categoryRow]),
       el("div", { class: "field" }, [
@@ -138,6 +147,7 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
     const name = f.name.value.trim();
     errEl.textContent = "";
     expiryErr.textContent = "";
+    lotErr.textContent = "";
     if (!name) { errEl.textContent = "Nome é obrigatório."; return; }
 
     const expiryValue = f.expiry.value.trim();
@@ -146,14 +156,23 @@ export async function openInventoryItemModal({ depositId, item, onSave }) {
       return;
     }
 
+    // Lote obrigatório na entrada de estoque — mesma regra aplicada no
+    // backend (InventoryService.Create/Update); aqui é só feedback rápido.
+    const lotValue = f.lot.value.trim();
+    if (!lotValue) {
+      lotErr.textContent = "Número do lote é obrigatório.";
+      return;
+    }
+
     saveBtn.disabled = true;
     try {
       const data = {
         name,
         sku: f.sku.value.trim(),
+        brand: f.brand.value.trim(),
         minQuantity: Number(f.min.value) || 0,
         expiryDate: expiryValue,
-        lotNumber: f.lot.value.trim(),
+        lotNumber: lotValue,
         categoryId: categorySelect.value || null,
         notes: f.notes.value.trim(),
         location: {
@@ -575,10 +594,13 @@ export async function openEntryFromPreProductModal({ depositId, preProduct, pres
   const qtyInput = el("input", { class: "input", type: "number", min: "1", value: "1", placeholder: "Quantidade *" });
   const expiryInput = el("input", { class: "input", placeholder: "DD/MM/AAAA", inputmode: "numeric", maxlength: "10" });
   expiryInput.addEventListener("input", () => { expiryInput.value = applyDateMask(expiryInput.value); expiryErr.textContent = ""; });
-  const lotInput = el("input", { class: "input", placeholder: "Número do lote (opcional)" });
+  // Lote obrigatório ao entrar no estoque, inclusive vindo de Pré-Produto
+  // (regra explícita da especificação — validado também no backend).
+  const lotInput = el("input", { class: "input", placeholder: "Número do lote *" });
   const barcodeInput = el("input", { class: "input", value: presetBarcode || "", placeholder: "Código de barras (opcional)" });
 
   const expiryErr = el("div", { class: "error-text" });
+  const lotErr = el("div", { class: "error-text" });
   const errEl = el("div", { class: "error-text" });
   const saveBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "check" }), "Registrar entrada"]);
   const cancelBtn = el("button", { class: "btn btn-ghost", text: "Cancelar" });
@@ -593,7 +615,7 @@ export async function openEntryFromPreProductModal({ depositId, preProduct, pres
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Data de validade *" }), expiryInput, expiryErr]),
     ]),
     el("div", { class: "form-grid-2" }, [
-      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote" }), lotInput]),
+      el("div", { class: "field" }, [el("label", { class: "field-label", text: "Número do lote *" }), lotInput, lotErr]),
       el("div", { class: "field" }, [el("label", { class: "field-label", text: "Código de barras" }), barcodeInput]),
     ]),
     errEl,
@@ -613,6 +635,7 @@ export async function openEntryFromPreProductModal({ depositId, preProduct, pres
   saveBtn.addEventListener("click", async () => {
     errEl.textContent = "";
     expiryErr.textContent = "";
+    lotErr.textContent = "";
 
     if (productSelect) {
       const chosen = preProducts.find((p) => p.id === productSelect.value);
@@ -629,20 +652,31 @@ export async function openEntryFromPreProductModal({ depositId, preProduct, pres
       return;
     }
 
+    // Lote obrigatório ao entrar no estoque, mesmo vindo de um Pré-Produto
+    // (o Pré-Produto em si podia não ter lote — o estoque exige).
+    const lotValue = lotInput.value.trim();
+    if (!lotValue) {
+      lotErr.textContent = "Número do lote é obrigatório.";
+      return;
+    }
+
     saveBtn.disabled = true;
     try {
+      // Marca é um campo próprio do item de estoque — nunca embutir em
+      // notes (ver migração 007). Unidade continua em notes, pois
+      // inventory não possui coluna de unidade própria.
       const notesParts = [];
       if (selectedProduct.unit) notesParts.push(`Unidade: ${selectedProduct.unit}`);
-      if (selectedProduct.brand) notesParts.push(`Marca: ${selectedProduct.brand}`);
       if (selectedProduct.notes) notesParts.push(selectedProduct.notes);
 
       const createdItem = await API.createInventoryItem({
         depositId,
         name: selectedProduct.name,
         sku: barcodeInput.value.trim(),
+        brand: selectedProduct.brand || "",
         minQuantity: 0,
         expiryDate: expiryValue,
-        lotNumber: lotInput.value.trim(),
+        lotNumber: lotValue,
         categoryId: selectedProduct.category_id || null,
         notes: notesParts.join(" · "),
         location: {},
@@ -662,4 +696,89 @@ export async function openEntryFromPreProductModal({ depositId, preProduct, pres
   document.body.appendChild(backdrop);
   renderIcons(backdrop);
   setTimeout(() => qtyInput.focus(), 80);
+}
+
+/**
+ * openPreProductListModal — lista os Pré-Produtos cadastrados em cards,
+ * com opções de Editar e Excluir (itens 4 e 5 da especificação). Reusa
+ * openPreProductModal para criação/edição — não duplica o formulário.
+ * A exclusão pede confirmação antes de chamar a API (evita exclusões
+ * acidentais) e o backend é quem garante a integridade referencial.
+ */
+export async function openPreProductListModal({ onChanged } = {}) {
+  const listEl = el("div", { class: "pre-product-list", style: "display:flex;flex-direction:column;gap:10px;max-height:60vh;overflow:auto" });
+  const emptyEl = el("p", { class: "muted", style: "text-align:center;padding:20px 0", text: "Nenhum Pré-Produto cadastrado ainda." });
+  const newBtn = el("button", { class: "btn btn-primary" }, [el("i", { "data-lucide": "plus" }), "Novo Pré-Produto"]);
+  const closeBtn = el("button", { class: "btn btn-ghost", text: "Fechar" });
+
+  const card = el("div", { class: "modal modal-lg" }, [
+    el("div", { class: "modal-header" }, [el("h3", { text: "Pré-Produtos" })]),
+    el("div", { class: "product-modal-body" }, [listEl]),
+    el("div", { class: "modal-actions" }, [closeBtn, newBtn]),
+  ]);
+  const backdrop = el("div", { class: "modal-backdrop" }, [card]);
+  const close = () => backdrop.remove();
+  backdrop.addEventListener("click", (e) => { if (e.target === backdrop) close(); });
+  closeBtn.addEventListener("click", close);
+
+  async function reload() {
+    listEl.innerHTML = "";
+    let list = [];
+    try {
+      list = await API.preProducts();
+    } catch (err) {
+      listEl.appendChild(el("p", { class: "error-text", text: err.message || "Erro ao carregar Pré-Produtos." }));
+      return;
+    }
+    if (!list.length) { listEl.appendChild(emptyEl); return; }
+
+    list.forEach((p) => {
+      const row = el("div", { class: "product-card", style: "display:flex;justify-content:space-between;align-items:center;gap:12px" }, [
+        el("div", {}, [
+          el("div", { class: "pc-name", text: p.name }),
+          p.brand ? el("div", { class: "muted", style: "font-size:0.82em", text: `Marca: ${p.brand}` }) : el("span"),
+          el("div", { class: "muted", style: "font-size:0.78em", text: [p.category?.name, p.unit].filter(Boolean).join(" · ") }),
+        ]),
+        el("div", { class: "pc-actions" }, [
+          el("button", { class: "icon-btn", title: "Editar", onclick: guardedClick(() => openPreProductModal({
+            preProduct: p,
+            onSave: async () => { await reload(); onChanged?.(); },
+          })) }, [el("i", { "data-lucide": "pencil" })]),
+          el("button", { class: "icon-btn", title: "Excluir", onclick: guardedClick(() => confirmDeletePreProduct(p)) }, [el("i", { "data-lucide": "trash-2" })]),
+        ]),
+      ]);
+      listEl.appendChild(row);
+    });
+    renderIcons(listEl);
+  }
+
+  function confirmDeletePreProduct(p) {
+    // Confirmação antes de excluir, conforme item 5 da especificação —
+    // evita exclusões acidentais. A checagem de integridade referencial
+    // (produtos/estoque já vinculados) é responsabilidade do backend.
+    openModal({
+      title: "Excluir Pré-Produto",
+      body: `Deseja excluir "${p.name}"${p.brand ? ` (${p.brand})` : ""}? Esta ação não pode ser desfeita.`,
+      primaryLabel: "Excluir",
+      danger: true,
+      onConfirm: async () => {
+        try {
+          await API.deletePreProduct(p.id);
+          notify("Pré-Produto excluído.", "warning");
+          await reload();
+          onChanged?.();
+        } catch (err) {
+          notify(err.message || "Erro ao excluir Pré-Produto.", "error");
+        }
+      },
+    });
+  }
+
+  newBtn.addEventListener("click", () => openPreProductModal({
+    onSave: async () => { await reload(); onChanged?.(); },
+  }));
+
+  document.body.appendChild(backdrop);
+  await reload();
+  renderIcons(backdrop);
 }

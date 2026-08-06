@@ -47,6 +47,7 @@ type inventoryItemRequest struct {
 	DepositID   string          `json:"deposit_id"`
 	Name        string          `json:"name"`
 	SKU         string          `json:"sku"`
+	Brand       string          `json:"brand"`
 	MinQuantity int             `json:"min_quantity"`
 	ExpiryDate  string          `json:"expiry_date"` // DD/MM/AAAA
 	LotNumber   string          `json:"lot_number"`
@@ -59,6 +60,7 @@ func (r inventoryItemRequest) toItemInput() services.ItemInput {
 	return services.ItemInput{
 		Name:        r.Name,
 		SKU:         r.SKU,
+		Brand:       r.Brand,
 		MinQuantity: r.MinQuantity,
 		ExpiryDate:  r.ExpiryDate,
 		LotNumber:   r.LotNumber,

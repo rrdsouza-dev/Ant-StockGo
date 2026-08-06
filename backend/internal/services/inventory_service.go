@@ -2,6 +2,7 @@ package services
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	"wms-backend/internal/domain"
@@ -17,9 +18,10 @@ var ErrForbiddenDeposit = errors.New("você não tem acesso a este depósito")
 type ItemInput struct {
 	Name        string
 	SKU         string
+	Brand       string // campo próprio (ver migração 007); nunca deve ser embutido em Notes
 	MinQuantity int
 	ExpiryDate  string // formato DD/MM/AAAA, validado em validation.ParseBRDate
-	LotNumber   string
+	LotNumber   string // obrigatório: ver validação em Create/Update abaixo
 	CategoryID  *string
 	Notes       string
 	Location    domain.Location
@@ -98,6 +100,14 @@ func (s *InventoryService) Create(user domain.User, depositID string, input Item
 	if err != nil {
 		return domain.InventoryItem{}, err
 	}
+	// Lote é obrigatório ao entrar no estoque (regra explícita da
+	// especificação: "não basta required no HTML/frontend"). Validado
+	// aqui, na única porta de entrada de criação de item de estoque —
+	// uma requisição direta à API sem lote é recusada.
+	lotNumber := strings.TrimSpace(input.LotNumber)
+	if lotNumber == "" {
+		return domain.InventoryItem{}, errors.New("número do lote é obrigatório")
+	}
 	if err := input.Location.Validate(); err != nil {
 		return domain.InventoryItem{}, err
 	}
@@ -106,9 +116,10 @@ func (s *InventoryService) Create(user domain.User, depositID string, input Item
 		DepositID:   depositID,
 		Name:        input.Name,
 		SKU:         input.SKU,
+		Brand:       strings.TrimSpace(input.Brand),
 		MinQuantity: input.MinQuantity,
 		ExpiryDate:  &expiry,
-		LotNumber:   input.LotNumber,
+		LotNumber:   lotNumber,
 		CategoryID:  input.CategoryID,
 		Notes:       input.Notes,
 		Location:    input.Location,
@@ -135,12 +146,16 @@ func (s *InventoryService) Update(user domain.User, itemID string, input ItemInp
 	if err != nil {
 		return domain.InventoryItem{}, err
 	}
+	lotNumber := strings.TrimSpace(input.LotNumber)
+	if lotNumber == "" {
+		return domain.InventoryItem{}, errors.New("número do lote é obrigatório")
+	}
 	if err := input.Location.Validate(); err != nil {
 		return domain.InventoryItem{}, err
 	}
 
-	return s.inventory.Update(itemID, input.Name, input.SKU, input.MinQuantity,
-		&expiry, input.LotNumber, input.CategoryID, input.Notes, input.Location)
+	return s.inventory.Update(itemID, input.Name, input.SKU, strings.TrimSpace(input.Brand), input.MinQuantity,
+		&expiry, lotNumber, input.CategoryID, input.Notes, input.Location)
 }
 
 func (s *InventoryService) Deactivate(user domain.User, itemID string) error {

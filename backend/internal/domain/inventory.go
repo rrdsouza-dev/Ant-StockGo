@@ -12,10 +12,11 @@ type InventoryItem struct {
 	DepositID   string     `json:"deposit_id"`
 	Name        string     `json:"name"`
 	SKU         string     `json:"sku,omitempty"`
+	Brand       string     `json:"brand,omitempty"` // campo próprio (ver migração 007); nunca embutir em Notes
 	Quantity    int        `json:"quantity"`
 	MinQuantity int        `json:"min_quantity"`
 	ExpiryDate  *time.Time `json:"expiry_date,omitempty"` // obrigatório na escrita; nullable no banco por compatibilidade com itens antigos
-	LotNumber   string     `json:"lot_number,omitempty"`
+	LotNumber   string     `json:"lot_number,omitempty"`  // obrigatório na escrita (ver migração 007 e InventoryService); nullable/vazio no banco só por compatibilidade com itens antigos
 	CategoryID  *string    `json:"category_id,omitempty"`
 	Category    *Category  `json:"category,omitempty"` // hidratado via LEFT JOIN, só para leitura
 	Notes       string     `json:"notes,omitempty"`
