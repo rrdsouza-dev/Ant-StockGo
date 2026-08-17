@@ -2,6 +2,11 @@ import { router } from "./router.js";
 import { session } from "./services/store.js";
 import { renderIcons } from "./utils/helpers.js";
 
+// Otis (assistente de IA): módulo autônomo que se monta/desmonta sozinho
+// observando a sessão, do mesmo jeito que notifications.js. Só precisa
+// ser importado uma vez para entrar em funcionamento.
+import "./components/otis.js";
+
 import { LoginPage } from "./pages/login.js";
 import { RegisterPage } from "./pages/register.js";
 import { DashboardPage } from "./pages/dashboard.js";

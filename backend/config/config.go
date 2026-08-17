@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 
 	"github.com/joho/godotenv"
 )
@@ -29,6 +30,14 @@ type Config struct {
 	// configurado, a limpeza fica bloqueada por padrão (nunca aceita
 	// código vazio como válido).
 	SupportAdminCode string
+
+	// ── Otis / IA (ver internal/ia) ────────────────────────────────
+	// OllamaBaseURL nunca é exposto ao frontend — só o backend fala
+	// com o Ollama. OllamaTimeoutSecs cobre o tempo de geração do
+	// Qwen3 1.7B rodando localmente no VPS.
+	OllamaBaseURL     string
+	OllamaModel       string
+	OllamaTimeoutSecs int
 }
 
 // Load lê o arquivo .env (se existir) e as variáveis de ambiente do
@@ -54,6 +63,10 @@ func Load() *Config {
 		AllowedOrigin: getEnv("ALLOWED_ORIGIN", "*"),
 
 		SupportAdminCode: getEnv("SUPPORT_ADMIN_CODE", ""),
+
+		OllamaBaseURL:     getEnv("OLLAMA_BASE_URL", "http://127.0.0.1:11434"),
+		OllamaModel:       getEnv("OLLAMA_MODEL", "qwen3:1.7b"),
+		OllamaTimeoutSecs: getEnvInt("OLLAMA_TIMEOUT_SECS", 60),
 	}
 
 	if cfg.JWTSecret == "" {
@@ -79,4 +92,16 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvInt(key string, fallback int) int {
+	v, ok := os.LookupEnv(key)
+	if !ok || v == "" {
+		return fallback
+	}
+	n, err := strconv.Atoi(v)
+	if err != nil {
+		return fallback
+	}
+	return n
 }

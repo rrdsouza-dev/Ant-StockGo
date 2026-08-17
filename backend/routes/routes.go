@@ -22,6 +22,7 @@ type Dependencies struct {
 	Support     *handlers.SupportHandler
 	PreProducts *handlers.PreProductHandler
 	Settings    *handlers.SystemSettingsHandler
+	Otis        *handlers.OtisHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -128,5 +129,13 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		settings := api.Group("/settings", authRequired)
 		settings.GET("/retention", deps.Settings.GetRetention)
 		settings.PUT("/retention", gestaoOnly, deps.Settings.UpdateRetention)
+
+		// ── Otis (assistente de IA) ─────────────────────────────
+		// Disponível para qualquer usuário autenticado, sem distinção
+		// de perfil: tanto professor quanto gestão podem tirar dúvidas
+		// sobre o uso do sistema. Nesta V1 o Otis não lê nem altera
+		// dados — só conversa (ver internal/ia.OtisService).
+		otis := api.Group("/otis", authRequired)
+		otis.POST("/chat", deps.Otis.Chat)
 	}
 }

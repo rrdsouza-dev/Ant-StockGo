@@ -244,6 +244,20 @@ export const API = {
   async updateRetentionSettings(days) {
     return request("/settings/retention", { method: "PUT", body: { movement_retention_days: days } });
   },
+
+  // ── Otis (assistente de IA) ──────────────────────────────────
+  /**
+   * Envia a mensagem atual do usuário mais o histórico da conversa (só
+   * mantido em memória no frontend nesta V1) e recebe a resposta do
+   * Otis. `history` é um array de { role: "user"|"assistant", content }.
+   */
+  async otisChat(message, history = []) {
+    const data = await request("/otis/chat", {
+      method: "POST",
+      body: { message, history },
+    });
+    return data.response;
+  },
 };
 
 /**

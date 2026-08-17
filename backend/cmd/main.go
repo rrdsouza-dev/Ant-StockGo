@@ -10,6 +10,7 @@ import (
 	"wms-backend/internal/auth"
 	"wms-backend/internal/database"
 	"wms-backend/internal/handlers"
+	"wms-backend/internal/ia"
 	"wms-backend/internal/middleware"
 	"wms-backend/internal/repositories"
 	"wms-backend/internal/services"
@@ -54,6 +55,15 @@ func main() {
 	preProductService := services.NewPreProductService(preProductRepo)
 	settingsService := services.NewSystemSettingsService(settingsRepo)
 
+	// Otis (assistente de IA) — camada própria em internal/ia, fora de
+	// services/, pois não faz acesso a banco e tem ciclo de vida
+	// próprio (cliente HTTP para o Ollama). O segundo argumento é o
+	// Retriever de RAG: nil nesta V1, pronto para receber uma
+	// implementação real (embeddings via pgvector no Supabase) no
+	// futuro sem mudar nada aqui além desta linha.
+	ollamaClient := ia.NewOllamaClient(cfg.OllamaBaseURL, cfg.OllamaModel, time.Duration(cfg.OllamaTimeoutSecs)*time.Second)
+	otisService := ia.NewOtisService(ollamaClient, nil)
+
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
 		Auth:        handlers.NewAuthHandler(authService, userService),
@@ -65,6 +75,7 @@ func main() {
 		Support:     handlers.NewSupportHandler(supportService),
 		PreProducts: handlers.NewPreProductHandler(preProductService),
 		Settings:    handlers.NewSystemSettingsHandler(settingsService),
+		Otis:        handlers.NewOtisHandler(otisService),
 		JWTManager:  jwtManager,
 		UserRepo:    userRepo,
 	}
