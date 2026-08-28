@@ -1,6 +1,7 @@
 import { router } from "./router.js";
 import { session } from "./services/store.js";
 import { renderIcons } from "./utils/helpers.js";
+import { notify } from "./components/notifications.js";
 
 // Otis (assistente de IA): módulo autônomo que se monta/desmonta sozinho
 // observando a sessão, do mesmo jeito que notifications.js. Só precisa
@@ -17,6 +18,7 @@ import { DepositsPage } from "./pages/deposits.js";
 import { ReportsPage } from "./pages/reports.js";
 import { ProfilePage } from "./pages/profile.js";
 import { ExportsPage } from "./pages/exports.js";
+import { ImportsPage } from "./pages/imports.js";
 import { UsersPage } from "./pages/users.js";
 import { SupportPage } from "./pages/support.js";
 import { ChooseClassPage } from "./pages/choose-class.js";
@@ -36,6 +38,7 @@ router.register("/reports", ReportsPage);
 router.register("/users", UsersPage);
 router.register("/profile", ProfilePage);
 router.register("/exports", ExportsPage);
+router.register("/imports", ImportsPage);
 router.register("/support", SupportPage);
 router.register("/choose-class", ChooseClassPage);
 router.register("/settings", SettingsPage);
@@ -74,3 +77,13 @@ if (document.readyState === "loading") {
 }
 
 window.addEventListener("load", () => renderIcons());
+
+// Sessão expirada/inválida (ver api.js): qualquer requisição autenticada
+// que receber 401 chega aqui, não importa em qual página o usuário
+// estava. Corrige o bug de "fechar e reabrir o navegador depois do token
+// vencer deixa o dashboard preso" — antes, só a sessão local era limpa,
+// sem nenhum redirecionamento de volta ao login.
+window.addEventListener("antstock:session-expired", () => {
+  notify("Sua sessão expirou. Faça login novamente.", "warning", { record: false });
+  router.navigate("/login");
+});

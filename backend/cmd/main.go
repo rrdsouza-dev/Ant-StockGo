@@ -11,6 +11,7 @@ import (
 	"wms-backend/internal/database"
 	"wms-backend/internal/handlers"
 	"wms-backend/internal/ia"
+	"wms-backend/internal/importing"
 	"wms-backend/internal/middleware"
 	"wms-backend/internal/repositories"
 	"wms-backend/internal/services"
@@ -64,6 +65,15 @@ func main() {
 	ollamaClient := ia.NewOllamaClient(cfg.OllamaBaseURL, cfg.OllamaModel, time.Duration(cfg.OllamaTimeoutSecs)*time.Second)
 	otisService := ia.NewOtisService(ollamaClient, nil)
 
+	// Importação Inteligente — reaproveita o MESMO cliente Ollama do
+	// Otis (não abre uma segunda conexão/configuração). A IA aqui tem um
+	// papel bem mais restrito que o do Otis: só resolve ambiguidade de
+	// cabeçalhos de planilha (ver internal/importing/ai_analyzer.go);
+	// todo o resto do fluxo (parsing, normalização, validação,
+	// gravação) é determinístico e não depende do Ollama estar no ar.
+	headerResolver := importing.NewOllamaHeaderResolver(ollamaClient)
+	importService := importing.NewImportService(inventoryService, preProductService, categoryService, headerResolver)
+
 	// Handlers (tradução HTTP <-> service)
 	deps := routes.Dependencies{
 		Auth:        handlers.NewAuthHandler(authService, userService),
@@ -76,6 +86,7 @@ func main() {
 		PreProducts: handlers.NewPreProductHandler(preProductService),
 		Settings:    handlers.NewSystemSettingsHandler(settingsService),
 		Otis:        handlers.NewOtisHandler(otisService),
+		Imports:     handlers.NewImportHandler(importService),
 		JWTManager:  jwtManager,
 		UserRepo:    userRepo,
 	}

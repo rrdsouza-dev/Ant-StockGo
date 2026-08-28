@@ -23,6 +23,7 @@ type Dependencies struct {
 	PreProducts *handlers.PreProductHandler
 	Settings    *handlers.SystemSettingsHandler
 	Otis        *handlers.OtisHandler
+	Imports     *handlers.ImportHandler
 
 	JWTManager *auth.JWTManager
 	UserRepo   *repositories.UserRepository
@@ -137,5 +138,17 @@ func Setup(router *gin.Engine, deps Dependencies) {
 		// dados — só conversa (ver internal/ia.OtisService).
 		otis := api.Group("/otis", authRequired)
 		otis.POST("/chat", deps.Otis.Chat)
+
+		// ── Importação Inteligente ───────────────────────────────
+		// Mesmo modelo de acesso de /inventory: qualquer usuário
+		// autenticado pode enviar uma planilha e importar produtos —
+		// o escopo por depósito (professor na turma dele, gestão no
+		// depósito administrativo) é resolvido dentro dos Services
+		// existentes (InventoryService/PreProductService), nunca
+		// aqui na rota. /preview nunca grava nada; /commit é quem
+		// efetivamente cria itens/pré-produtos.
+		imports := api.Group("/imports", authRequired)
+		imports.POST("/preview", deps.Imports.Preview)
+		imports.POST("/commit", deps.Imports.Commit)
 	}
 }

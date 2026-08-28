@@ -17,6 +17,7 @@ const NAV = [
 ];
 
 const BOTTOM = [
+  { path: "/imports",  label: "Importações",  icon: "upload" },
   { path: "/exports",  label: "Exportações",  icon: "download" },
   { path: "/support",  label: "Suporte",      icon: "life-buoy" },
   { action: "logout",  label: "Log Out",      icon: "log-out" },

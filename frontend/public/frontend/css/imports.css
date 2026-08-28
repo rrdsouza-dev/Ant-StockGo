@@ -1,0 +1,487 @@
+/**
+ * imports.css — Importação Inteligente.
+ *
+ * Reaproveita as variáveis de design (variables.css), classes base de
+ * card/chip/botão/campo (components.css) e keyframes já existentes
+ * (animations.css: @keyframes spin, .stagger) — este arquivo só define
+ * o que é específico desta funcionalidade (dropzone, cards de item,
+ * barra de progresso, tela de resultado).
+ */
+
+/* ── Cabeçalho ─────────────────────────────────────────────────── */
+
+.imports-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.imports-title-star {
+    display: inline-flex;
+    color: var(--green-500);
+}
+
+/* ── Estágio 1: dropzone ──────────────────────────────────────── */
+
+.import-card {
+    max-width: 620px;
+}
+.import-dropzone {
+    border: 2px dashed var(--border-strong);
+    border-radius: var(--radius-lg);
+    padding: var(--space-8) var(--space-6);
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.import-dropzone.dragover {
+    border-color: var(--green-500);
+    background: var(--green-50);
+}
+.import-dropzone-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-pill);
+    background: var(--green-50);
+    color: var(--green-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 4px;
+}
+.import-dropzone-icon i {
+    width: 26px;
+    height: 26px;
+}
+.import-dropzone-title {
+    font-weight: 700;
+    font-size: 16px;
+}
+.import-dropzone .btn {
+    margin-top: 10px;
+}
+
+.import-info-row {
+    margin-top: var(--space-6);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.import-info-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+}
+.import-info-item i {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    color: var(--green-600);
+}
+
+/* ── Estágio 2/4: processamento / progresso ──────────────────── */
+
+.import-processing {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    padding-top: var(--space-8);
+    padding-bottom: var(--space-8);
+}
+.import-spinner {
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.import-spinner .spinner-ring {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--green-100);
+    border-top-color: var(--green-500);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+.import-processing-title {
+    font-weight: 700;
+    font-size: 16px;
+}
+.import-processing-steps {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 13.5px;
+}
+
+.import-progress-bar {
+    width: 100%;
+    max-width: 320px;
+    height: 8px;
+    border-radius: var(--radius-pill);
+    background: var(--border);
+    overflow: hidden;
+}
+.import-progress-fill {
+    height: 100%;
+    background: var(--green-500);
+    border-radius: var(--radius-pill);
+    transition: width var(--dur-slow) var(--ease);
+}
+
+/* ── Estágio 3: prévia ────────────────────────────────────────── */
+
+.import-preview {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+}
+
+.import-summary-card {
+    max-width: 720px;
+}
+.import-summary-head h3 {
+    margin: 0 0 2px;
+}
+.import-summary-chips {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.import-ai-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+    font-size: 13px;
+    color: var(--text-muted);
+}
+.import-ai-note svg {
+    color: var(--green-500);
+    flex-shrink: 0;
+}
+
+.import-target-card {
+    max-width: 720px;
+}
+.import-target-options {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    flex-wrap: wrap;
+}
+.import-target-option {
+    flex: 1 1 220px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    padding: 14px 16px;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+.import-target-option:hover {
+    border-color: var(--green-300);
+}
+.import-target-option.active {
+    border-color: var(--green-500);
+    background: var(--green-50);
+}
+.import-target-option input[type="radio"] {
+    margin-top: 3px;
+    accent-color: var(--green-500);
+}
+.import-target-option-label {
+    font-weight: 600;
+    font-size: 14px;
+}
+.import-target-option-desc {
+    font-size: 12.5px;
+    margin-top: 2px;
+}
+.import-target-card .field {
+    margin-top: 16px;
+    max-width: 320px;
+}
+
+.import-list-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.import-list-head h3 {
+    margin: 0;
+    font-size: 15px;
+}
+.import-filter-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13.5px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+.import-filter-toggle input {
+    accent-color: var(--green-500);
+}
+
+.import-unmapped-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-muted);
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+}
+.import-unmapped-note i {
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.import-item-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 14px;
+}
+.import-item-card {
+    padding: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.import-item-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+.import-item-head h4 {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.3;
+}
+.import-status-chip {
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+.import-status-chip i {
+    width: 12px;
+    height: 12px;
+}
+
+.import-item-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.import-item-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13.5px;
+    padding: 2px 0;
+}
+.import-item-row-label {
+    color: var(--text-muted);
+}
+.import-item-row-value {
+    font-weight: 600;
+}
+.import-item-row-value.missing {
+    color: var(--danger);
+    font-weight: 700;
+}
+
+.import-item-issues {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+.import-issue {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12.5px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+}
+.import-issue i {
+    width: 14px;
+    height: 14px;
+    flex-shrink: 0;
+}
+.import-issue-warning {
+    background: #fff7e6;
+    color: #a35a00;
+}
+.import-issue-danger {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+.import-issue-info {
+    background: #eff6ff;
+    color: #1d4ed8;
+}
+
+.import-item-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: auto;
+    padding-top: 4px;
+}
+
+.import-preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+.import-edit-form {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.import-confirm-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.import-confirm-summary .chip {
+    align-self: flex-start;
+}
+
+/* ── Estágio 5: resultado ────────────────────────────────────── */
+
+.import-done-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-5);
+    max-width: 620px;
+}
+.import-done-card {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+.import-done-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-pill);
+    background: var(--green-50);
+    color: var(--green-600);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.import-done-icon i {
+    width: 28px;
+    height: 28px;
+}
+.import-done-icon.has-warning {
+    background: #fff7e6;
+    color: #a35a00;
+}
+.import-done-stats {
+    display: flex;
+    gap: 28px;
+    margin-top: 6px;
+}
+.import-done-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.import-done-stat strong {
+    font-size: 22px;
+}
+.import-done-stat span {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+.text-success { color: var(--green-600); }
+.text-danger { color: var(--danger); }
+
+.import-failures-card h3 {
+    margin: 0 0 12px;
+    font-size: 15px;
+}
+.import-failures-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.import-failure-row {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: #fef2f2;
+}
+.import-failure-name {
+    font-weight: 600;
+    font-size: 13.5px;
+}
+.import-failure-reason {
+    font-size: 12.5px;
+}
+
+.import-done-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+/* ── Responsivo ───────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+    .import-item-grid {
+        grid-template-columns: 1fr;
+    }
+    .import-target-options {
+        flex-direction: column;
+    }
+    .import-done-stats {
+        gap: 18px;
+    }
+    .import-preview-actions {
+        flex-direction: column-reverse;
+    }
+    .import-preview-actions .btn {
+        width: 100%;
+    }
+    .import-done-actions {
+        flex-direction: column;
+    }
+    .import-done-actions .btn {
+        width: 100%;
+    }
+}

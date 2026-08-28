@@ -50,7 +50,56 @@ async function request(path, { method = "GET", body, params } = {}) {
   const data = isJson ? await response.json().catch(() => null) : null;
 
   if (!response.ok) {
-    if (response.status === 401) session.signOut();
+    if (response.status === 401) {
+      // Sessão inválida/expirada: limpa a sessão local e avisa o resto do
+      // app (ver app.js, que escuta este evento para redirecionar ao
+      // login). Sem isso, a página que fez a chamada continuava montada
+      // "quebrada" — o usuário via toasts de erro em vez de ser levado
+      // de volta ao login (era exatamente o bug relatado: fechar e
+      // reabrir o navegador depois do token expirar deixava o dashboard
+      // preso, exigindo logout manual).
+      const wasAuthenticated = session.isAuthenticated() || !!session.token;
+      session.signOut();
+      if (wasAuthenticated) {
+        window.dispatchEvent(new CustomEvent("antstock:session-expired"));
+      }
+    }
+    throw new Error(data?.error || `Erro ${response.status} ao comunicar com o servidor.`);
+  }
+
+  return data;
+}
+
+/**
+ * requestUpload — variante de request() para multipart/form-data (envio
+ * de arquivo). Não define Content-Type manualmente: o browser precisa
+ * gerar o boundary correto sozinho a partir do FormData, e sobrescrever
+ * o header aqui quebraria isso silenciosamente. Reaproveita a mesma
+ * lógica de autenticação/401/erro de request() para não duplicar o
+ * tratamento de sessão expirada em dois lugares.
+ */
+async function requestUpload(path, formData) {
+  const headers = {};
+  if (session.token) headers.Authorization = "Bearer " + session.token;
+
+  let response;
+  try {
+    response = await fetch(BASE_URL + path, { method: "POST", headers, body: formData });
+  } catch {
+    throw new Error("Não foi possível conectar ao servidor. Verifique sua conexão.");
+  }
+
+  const isJson = response.headers.get("content-type")?.includes("application/json");
+  const data = isJson ? await response.json().catch(() => null) : null;
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      const wasAuthenticated = session.isAuthenticated() || !!session.token;
+      session.signOut();
+      if (wasAuthenticated) {
+        window.dispatchEvent(new CustomEvent("antstock:session-expired"));
+      }
+    }
     throw new Error(data?.error || `Erro ${response.status} ao comunicar com o servidor.`);
   }
 
@@ -257,6 +306,31 @@ export const API = {
       body: { message, history },
     });
     return data.response;
+  },
+
+  // ── Importação Inteligente ───────────────────────────────────
+  /**
+   * Envia a planilha para o backend interpretar. Nada é gravado nesta
+   * chamada — devolve a prévia completa (itens, resumo, mapeamento de
+   * colunas) para o usuário revisar. `target` é "inventory_item"
+   * (padrão) ou "pre_product".
+   */
+  async importPreview(file, target = "inventory_item") {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("target", target);
+    return requestUpload("/imports/preview", formData);
+  },
+  /**
+   * Grava os itens já revisados pelo usuário. `items` é o array de
+   * ImportItem (já editado/filtrado no frontend) no formato esperado
+   * pelo backend (ver toCommitItem em pages/imports.js).
+   */
+  async importCommit({ depositId, target, items }) {
+    return request("/imports/commit", {
+      method: "POST",
+      body: { deposit_id: depositId, target, items },
+    });
   },
 };
 
