@@ -51,19 +51,21 @@ Na primeira versão, o Otis atua como um assistente conversacional capaz de:
 
 A arquitetura foi projetada para permitir futuras integrações com ferramentas do sistema e automações controladas pelo backend.
 
+### Planilha Inteligente
+
+![Planilha Inteligente](docs/screenshots/PlanilhaIA.png)
+
 ---
 
 ## Arquitetura
 
 ### Frontend
-
 - HTML
 - CSS
 - JavaScript
 - SPA sem framework
 
 ### Backend
-
 - Go
 - Gin
 - Arquitetura em camadas:
@@ -74,23 +76,19 @@ A arquitetura foi projetada para permitir futuras integrações com ferramentas 
   - AI
 
 ### Banco de dados
-
 - PostgreSQL
 - Supabase
 
 ### Inteligência Artificial
-
 - Ollama
 - Qwen3 1.7B
 - Execução local no servidor
 
 ### Autenticação
-
 - JWT
 - bcrypt
 
 ### Infraestrutura
-
 - VPS Linux
 - Ubuntu
 - Hostinger
@@ -100,11 +98,9 @@ A arquitetura foi projetada para permitir futuras integrações com ferramentas 
 ## Fluxo do sistema
 
 ### Fluxo tradicional
-
 Frontend → API Go → Middleware de autenticação → Handlers → Services → Repositories → PostgreSQL (Supabase)
 
 ### Fluxo da IA
-
 Frontend → API Go → Serviço de IA → Ollama → Qwen3 → API Go → Frontend
 
 O modelo de IA não possui acesso direto ao banco de dados. A comunicação com os recursos do sistema é controlada pelo backend.
@@ -137,7 +133,8 @@ A arquitetura também foi projetada para permitir a utilização de inteligênci
 
 ## Status
 
-Sistema funcional e em evolução contínua.
+ **Sistema em produção**  
+Atualmente em uso em ambiente escolar.
 
 O assistente inteligente **Otis** está sendo desenvolvido de forma incremental, começando pela interação conversacional e posteriormente evoluindo para ferramentas e automações controladas pelo backend.
 
